@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      String   // ADMIN | TEACHER | STUDENT | COORDINATOR
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student  Student?
+  teacher  Teacher?
+  notifications Notification[]
+}
+
+model Person {
+  id        String   @id @default(uuid())
+  name      String
+  cpf       String   @unique
+  rg        String?
+  birthDate DateTime?
+  gender    String?  // MALE | FEMALE | OTHER
+  phone     String?
+  address   String?
+  city      String?
+  state     String?
+  zipCode   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student Student?
+  teacher Teacher?
+}
+
+model Student {
+  id             String  @id @default(uuid())
+  userId         String  @unique
+  personId       String  @unique
+  registration   String  @unique
+  status         String  @default("ACTIVE") // ACTIVE | INACTIVE | TRANSFERRED | GRADUATED
+  enrollmentDate DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  person        Person        @relation(fields: [personId], references: [id], onDelete: Cascade)
+  grades        Grade[]
+  attendances   Attendance[]
+  classStudents ClassStudent[]
+}
+
+model Teacher {
+  id        String    @id @default(uuid())
+  userId    String    @unique
+  personId  String    @unique
+  admission DateTime?
+  salary    Float?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  person   Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  subjects Subject[]
+  classes  Class[]
+  grades   Grade[]
+}
+
+model Subject {
+  id          String   @id @default(uuid())
+  name        String
+  code        String   @unique
+  description String?
+  workload    Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  teacherId String?
+  teacher   Teacher? @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  classes   Class[]
+  grades    Grade[]
+}
+
+model Class {
+  id        String   @id @default(uuid())
+  name      String
+  year      Int
+  shift     String   // morning | afternoon | night
+  teacherId String
+  subjectId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teacher       Teacher        @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  subject       Subject        @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  classStudents ClassStudent[]
+  grades        Grade[]
+  attendances   Attendance[]
+
+  @@unique([name, year, subjectId])
+}
+
+model ClassStudent {
+  id        String   @id @default(uuid())
+  classId   String
+  studentId String
+  createdAt DateTime @default(now())
+
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, studentId])
+}
+
+model Grade {
+  id        String   @id @default(uuid())
+  studentId String
+  classId   String
+  teacherId String
+  subjectId String
+  value     Float
+  period    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, classId, subjectId, period])
+}
+
+model Attendance {
+  id        String   @id @default(uuid())
+  studentId String
+  classId   String
+  date      DateTime
+  status    String   // PRESENT | ABSENT | JUSTIFIED | LATE
+  notes     String?
+  createdAt DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, classId, date])
+}
+
+model Notification {
+  id         String   @id @default(uuid())
+  userId     String?  // null = broadcast por papel
+  targetRole String?  // ADMIN | TEACHER | STUDENT | COORDINATOR (quando broadcast)
+  title      String
+  message    String
+  type       String   @default("info") // info | success | warning | grade | enrollment | announcement
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

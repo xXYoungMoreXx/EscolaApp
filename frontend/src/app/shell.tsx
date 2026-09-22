@@ -1,0 +1,49 @@
+'use client';
+
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { useAuth } from '@/lib/auth-context';
+import Sidebar from '@/components/layout/Sidebar';
+import Header from '@/components/layout/Header';
+
+const PUBLIC_PATHS = ['/', '/login'];
+
+export default function Shell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { isAuthenticated, isLoading } = useAuth();
+
+  const isPublic = PUBLIC_PATHS.includes(pathname);
+
+  useEffect(() => {
+    if (!isLoading && !isPublic && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [isLoading, isPublic, isAuthenticated, router]);
+
+  if (isPublic) {
+    return <>{children}</>;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Sidebar />
+      <div className="lg:ml-64">
+        <Header />
+        <main className="p-4 lg:p-8">{children}</main>
+      </div>
+    </div>
+  );
+}
