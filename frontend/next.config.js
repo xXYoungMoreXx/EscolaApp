@@ -5,10 +5,11 @@ const nextConfig = {
     domains: ['localhost'],
   },
   async rewrites() {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333';
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:3333/api/:path*',
+        destination: `${apiUrl}/api/:path*`,
       },
     ];
   },
