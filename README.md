@@ -23,15 +23,23 @@ EscolaApp/
 - **Rate limit**: Upstash Redis quando configurado, fallback em memória para dev.
 - **Auth**: JWT Bearer + roles (ADMIN, COORDINATOR, TEACHER, STUDENT), validação Zod em todas as entradas.
 
-## Deploy na Vercel
+## Deploy na Vercel (100% tiers gratuitos)
 
-1. Crie o banco: [Neon](https://neon.tech) (ou Supabase) → copie a **pooled connection string**.
+1. Banco Postgres grátis — escolha uma:
+   - **Neon pelo Marketplace da Vercel (recomendado)**: Vercel → seu projeto → aba
+     *Storage* → *Neon Postgres* → provisiona sem sair da Vercel, tier gratuito,
+     já injeta `DATABASE_URL` (pooled). Sem conta separada, sem cartão.
+   - **Supabase gratuito**: [supabase.com](https://supabase.com) → New Project (free)
+     → *Connect* → copie a **pooled URL** (porta 6543) para `DATABASE_URL` em produção
+     e use a **direct URL** (porta 5432) só para rodar `db:migrate`. Ressalva: projeto
+     free pausa após inatividade — primeiro acesso acorda em ~1 min.
 2. Importe o repo na Vercel (Root Directory `./` — o `vercel.json` já aponta para `frontend/`).
 3. Variáveis de ambiente:
-   - `DATABASE_URL` — string pooled do Neon (ex.: `...?pgbouncer=true&connection_limit=1`)
+   - `DATABASE_URL` — pooled URL (Neon injeta sozinho via Marketplace)
    - `JWT_SECRET` — segredo longo e aleatório (**obrigatório**)
-   - `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — opcional (rate limit distribuído)
-4. Deploy. Depois, rode migration + seed contra o banco de produção:
+   - `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — opcional e grátis via
+     Marketplace (*Upstash Redis*); sem isso o rate-limit usa fallback em memória
+4. Deploy. Depois, migration + seed contra o banco de produção:
 
 ```bash
 cd frontend
