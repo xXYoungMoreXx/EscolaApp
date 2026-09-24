@@ -43,6 +43,7 @@ export interface User {
   id: string;
   email: string;
   role: 'ADMIN' | 'TEACHER' | 'STUDENT' | 'COORDINATOR';
+  mustChangePassword?: boolean;
 }
 
 export interface Person {

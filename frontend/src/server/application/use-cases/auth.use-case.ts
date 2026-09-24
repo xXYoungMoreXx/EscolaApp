@@ -30,7 +30,7 @@ export class LoginUseCase {
     logger.info({ userId: user.id, role: user.role }, 'User logged in');
 
     return {
-      user: { id: user.id, email: user.email, role: user.role },
+      user: { id: user.id, email: user.email, role: user.role, mustChangePassword: user.mustChangePassword },
       ...tokens,
     };
   }
@@ -51,7 +51,7 @@ export class ChangePasswordUseCase {
     }
 
     const hashedPassword = await hashPassword(newPassword);
-    await this.userRepository.update(userId, { password: hashedPassword });
+    await this.userRepository.update(userId, { password: hashedPassword, mustChangePassword: false });
 
     logger.info({ userId }, 'Password changed');
     return { success: true };

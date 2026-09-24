@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(userData);
 
       toast.success('Login realizado com sucesso!');
-      router.push('/dashboard');
+      router.push(userData.mustChangePassword ? '/change-password' : '/dashboard');
     } catch (error: any) {
       const message = error.response?.data?.error?.message || 'Erro ao fazer login';
       toast.error(message);

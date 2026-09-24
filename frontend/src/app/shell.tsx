@@ -6,12 +6,12 @@ import { useAuth } from '@/lib/auth-context';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 
-const PUBLIC_PATHS = ['/', '/login', '/changelog'];
+const PUBLIC_PATHS = ['/', '/login', '/register', '/forgot-password', '/changelog'];
 
 export default function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
 
   const isPublic = PUBLIC_PATHS.includes(pathname);
 
@@ -20,6 +20,17 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       router.push('/login');
     }
   }, [isLoading, isPublic, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (
+      !isLoading &&
+      isAuthenticated &&
+      user?.mustChangePassword &&
+      pathname !== '/change-password'
+    ) {
+      router.push('/change-password');
+    }
+  }, [isLoading, isAuthenticated, user, pathname, router]);
 
   if (isPublic) {
     return <>{children}</>;

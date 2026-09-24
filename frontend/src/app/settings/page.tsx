@@ -15,6 +15,7 @@ import {
   HiOutlineUsers,
   HiOutlineMoon,
   HiOutlineDesktopComputer,
+  HiOutlineKey,
 } from 'react-icons/hi';
 
 const roleLabels: Record<string, string> = {
@@ -356,6 +357,114 @@ function AnnouncementsSection() {
   );
 }
 
+function ResetsSection() {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [tempEmail, setTempEmail] = useState('');
+
+  const fetchItems = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get('/api/auth/reset-requests');
+      setItems(res.data.data);
+    } catch {
+      toast.error('Erro ao carregar pedidos de reset');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchItems();
+  }, []);
+
+  const approve = async (id: string, email: string) => {
+    try {
+      const res = await api.post(`/api/auth/reset-requests/${id}/approve`);
+      setTempPassword(res.data.data.tempPassword);
+      setTempEmail(email);
+      toast.success('Reset aprovado! Anote a senha temporária.');
+      fetchItems();
+    } catch {
+      toast.error('Erro ao aprovar reset');
+    }
+  };
+
+  const reject = async (id: string) => {
+    try {
+      await api.post(`/api/auth/reset-requests/${id}/reject`);
+      toast.success('Pedido recusado.');
+      fetchItems();
+    } catch {
+      toast.error('Erro ao recusar pedido');
+    }
+  };
+
+  return (
+    <Section
+      icon={HiOutlineKey}
+      title="Resets de senha"
+      desc="Aprove pedidos de quem esqueceu a senha. A senha temporária aparece uma única vez — anote e informe manualmente ao usuário."
+    >
+      {tempPassword && (
+        <div className="mb-4 rounded-lg border border-yellow-300 bg-yellow-50 p-4">
+          <p className="text-sm text-gray-700">
+            Senha temporária de <strong>{tempEmail}</strong>:
+          </p>
+          <p className="mt-1 text-2xl font-mono font-bold tracking-wider text-gray-900">
+            {tempPassword}
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={() => {
+                navigator.clipboard?.writeText(tempPassword);
+                toast.success('Copiada!');
+              }}
+              className="btn-secondary text-xs"
+            >
+              Copiar
+            </button>
+            <button onClick={() => setTempPassword(null)} className="btn-secondary text-xs">
+              Ocultar
+            </button>
+          </div>
+        </div>
+      )}
+      {loading ? (
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      ) : items.length === 0 ? (
+        <p className="text-sm text-gray-500">Nenhum pedido pendente.</p>
+      ) : (
+        <ul className="space-y-2">
+          {items.map((r) => (
+            <li
+              key={r.id}
+              className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border border-gray-200 p-3"
+            >
+              <div className="text-sm">
+                <p className="font-medium text-gray-900">{r.user?.email}</p>
+                <p className="text-gray-500">
+                  {roleLabels[r.user?.role] || r.user?.role} — pedido em{' '}
+                  {new Date(r.createdAt).toLocaleString('pt-BR')}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => approve(r.id, r.user?.email)} className="btn-primary text-xs">
+                  Aprovar e gerar senha
+                </button>
+                <button onClick={() => reject(r.id)} className="btn-secondary text-xs">
+                  Recusar
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Section>
+  );
+}
+
 function UsersSection() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -438,6 +547,7 @@ export default function SettingsPage() {
   const { user } = useAuth();
   const role = user?.role || '';
   const canAnnounce = role === 'ADMIN' || role === 'COORDINATOR';
+  const canReset = role === 'ADMIN' || role === 'COORDINATOR';
   const isAdmin = role === 'ADMIN';
 
   return (
@@ -455,6 +565,7 @@ export default function SettingsPage() {
       <AppearanceSection />
       <NotificationPrefsSection />
       {canAnnounce && <AnnouncementsSection />}
+      {canReset && <ResetsSection />}
       {isAdmin && <UsersSection />}
 
       {!isAdmin && (

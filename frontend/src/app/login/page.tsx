@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { HiOutlineAcademicCap, HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi';
 
@@ -94,6 +95,15 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          <div className="mt-4 flex items-center justify-between text-sm">
+            <Link href="/forgot-password" className="font-medium text-primary-600 hover:text-primary-700">
+              Esqueci minha senha
+            </Link>
+            <Link href="/register" className="font-medium text-primary-600 hover:text-primary-700">
+              Criar conta
+            </Link>
+          </div>
 
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
             <p className="text-xs text-gray-500 mb-2">Credenciais de teste:</p>

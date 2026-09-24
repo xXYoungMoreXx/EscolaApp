@@ -22,7 +22,11 @@ export function validateCPF(cpf: string): boolean {
 
 export const emailSchema = z.string().email('Email inválido').max(255);
 export const cpfSchema = z.string().refine(validateCPF, 'CPF inválido');
-export const passwordSchema = z.string().min(8, 'Senha deve ter no mínimo 8 caracteres').max(128);
+export const passwordSchema = z
+  .string()
+  .min(8, 'Senha deve ter no mínimo 8 caracteres')
+  .max(128)
+  .refine((v) => /[A-Za-z]/.test(v) && /\d/.test(v), 'Senha deve conter letras e números');
 export const nameSchema = z.string().min(2, 'Nome deve ter no mínimo 2 caracteres').max(255);
 
 export const createUserSchema = z.object({

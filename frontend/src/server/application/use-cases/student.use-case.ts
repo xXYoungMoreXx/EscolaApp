@@ -10,7 +10,7 @@ export class CreateStudentUseCase {
   ) {}
 
   async execute(data: {
-    user: { email: string; password: string };
+    user: { email: string; password: string; role?: string };
     person: { name: string; cpf: string; [key: string]: any };
   }) {
     const registration = await this.nextRegistration();
@@ -18,7 +18,7 @@ export class CreateStudentUseCase {
     const createUser = new CreateUserUseCase(this.userRepository);
     const user = await createUser.execute({
       ...data.user,
-      role: 'STUDENT',
+      role: data.user.role ?? 'STUDENT',
     });
 
     const person = await this.createPerson(data.person);
