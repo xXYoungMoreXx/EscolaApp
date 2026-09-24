@@ -12,6 +12,7 @@ import {
   HiOutlineChartBar,
   HiOutlineShieldCheck,
   HiOutlineSparkles,
+  HiOutlineCheckCircle,
 } from 'react-icons/hi';
 
 const stats = [
@@ -67,7 +68,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-white">
       <header className="border-b border-gray-200">
-        <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
+        <div className="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
               <HiOutlineAcademicCap className="text-white text-xl" />
@@ -87,40 +88,65 @@ export default function Home() {
       </header>
 
       <main>
-        <section className="mx-auto max-w-6xl px-4 pt-16 pb-12 text-center">
-          <p className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-1.5 text-sm font-medium text-blue-700">
-            <HiOutlineSparkles className="h-4 w-4" />
-            Gestão escolar completa no navegador
-          </p>
-          <h1 className="mt-6 text-4xl sm:text-5xl font-bold tracking-tight text-gray-900">
-            A escola inteira, <span className="text-primary-600">sem a papelada</span>
-          </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-600">
-            Alunos, professores, turmas, notas, presença e avisos em um só lugar.
-            Menos planilha, mais aula.
-          </p>
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link href="/login" className="btn-primary px-6 py-3 text-base">
-              Acessar a plataforma
+        <section className="mx-auto max-w-7xl px-4 pt-12 pb-12 lg:pt-16 grid gap-10 lg:grid-cols-5 items-center">
+          <div className="lg:col-span-3">
+            <p className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-1.5 text-sm font-medium text-blue-700">
+              <HiOutlineSparkles className="h-4 w-4" />
+              Gestão escolar completa no navegador
+            </p>
+            <h1 className="mt-6 text-4xl sm:text-5xl font-bold tracking-tight text-gray-900">
+              A escola inteira, <span className="text-primary-600">sem a papelada</span>
+            </h1>
+            <p className="mt-4 max-w-2xl text-lg text-gray-600">
+              Alunos, professores, turmas, notas, presença e avisos em um só lugar.
+              Menos planilha, mais aula.
+            </p>
+            <div className="mt-8 flex flex-col sm:flex-row gap-3">
+              <Link href="/login" className="btn-primary px-6 py-3 text-base">
+                Acessar a plataforma
+                <HiOutlineArrowRight className="ml-2 h-5 w-5" />
+              </Link>
+              <Link href="/changelog" className="btn-secondary px-6 py-3 text-base">
+                Ver novidades
+              </Link>
+            </div>
+            <dl className="mt-10 grid max-w-2xl grid-cols-2 sm:grid-cols-4 gap-6">
+              {stats.map((s) => (
+                <div key={s.label}>
+                  <dd className="text-3xl font-bold text-gray-900">{s.value}</dd>
+                  <dt className="mt-1 text-sm text-gray-500">{s.label}</dt>
+                </div>
+              ))}
+            </dl>
+          </div>
+          <aside className="lg:col-span-2 card !p-8">
+            <h2 className="text-lg font-bold text-gray-900">O que você resolve hoje</h2>
+            <ul className="mt-4 space-y-3 text-sm text-gray-700">
+              {[
+                'Matricular alunos com aviso automático',
+                'Lançar notas e presença em segundos',
+                'Acompanhar turmas e desempenho no painel',
+                'Avisar alunos, pais e equipe na hora',
+              ].map((t) => (
+                <li key={t} className="flex items-start gap-2">
+                  <HiOutlineCheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-green-600" />
+                  {t}
+                </li>
+              ))}
+            </ul>
+            <Link href="/login" className="btn-primary mt-6 w-full px-6 py-3 text-base">
+              Começar agora
               <HiOutlineArrowRight className="ml-2 h-5 w-5" />
             </Link>
-            <Link href="/changelog" className="btn-secondary px-6 py-3 text-base">
-              Ver novidades
-            </Link>
-          </div>
-          <dl className="mx-auto mt-12 grid max-w-3xl grid-cols-2 sm:grid-cols-4 gap-6">
-            {stats.map((s) => (
-              <div key={s.label}>
-                <dd className="text-3xl font-bold text-gray-900">{s.value}</dd>
-                <dt className="mt-1 text-sm text-gray-500">{s.label}</dt>
-              </div>
-            ))}
-          </dl>
+            <p className="mt-3 text-center text-xs text-gray-500">
+              Sem instalação. Funciona no computador e no celular.
+            </p>
+          </aside>
         </section>
 
         <section className="bg-gray-50 border-y border-gray-200">
-          <div className="mx-auto max-w-6xl px-4 py-14">
-            <h2 className="text-2xl font-bold text-gray-900 text-center">
+          <div className="mx-auto max-w-7xl px-4 py-14">
+            <h2 className="text-2xl font-bold text-gray-900">
               Feito para cada papel da escola
             </h2>
             <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -136,8 +162,8 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-6xl px-4 py-14">
-          <h2 className="text-2xl font-bold text-gray-900 text-center">Comece em 3 passos</h2>
+        <section className="mx-auto max-w-7xl px-4 py-14">
+          <h2 className="text-2xl font-bold text-gray-900">Comece em 3 passos</h2>
           <ol className="mt-8 grid gap-4 md:grid-cols-3">
             {steps.map((s) => (
               <li key={s.n} className="card flex gap-4">
@@ -157,8 +183,8 @@ export default function Home() {
               Seguro por padrão, rápido por arquitetura
             </h2>
             <p className="mx-auto mt-2 max-w-xl text-gray-300">
-              Login com papéis de acesso, senhas protegidas, limite anti-força-bruta e
-              hospedagem serverless com banco dedicado.
+              Login com papéis de acesso, senhas protegidas, bloqueio contra acessos
+              abusivos e infraestrutura de nuvem escalável.
             </p>
             <div className="mt-4 flex flex-wrap justify-center gap-2 text-xs font-medium">
               {['Alunos', 'Professores', 'Matérias', 'Turmas', 'Notas', 'Presença', 'Avisos', 'Relatórios'].map(
@@ -178,7 +204,7 @@ export default function Home() {
       </main>
 
       <footer className="border-t border-gray-200">
-        <div className="mx-auto max-w-6xl px-4 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-gray-500">
+        <div className="mx-auto max-w-7xl px-4 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-gray-500">
           <p>EscolaApp — gestão escolar sem papelada.</p>
           <div className="flex items-center gap-4">
             <Link href="/changelog" className="hover:text-gray-900">

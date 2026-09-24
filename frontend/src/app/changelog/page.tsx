@@ -26,9 +26,9 @@ const editions: Entry[] = [
     intro:
       'O EscolaApp agora roda com banco serverless gratuito e com os scripts de banco à prova de ambiente.',
     items: [
-      { tag: 'Novo', text: 'Deploy documentado 100% em tiers gratuitos (Neon e Supabase via Marketplace da Vercel).' },
+      { tag: 'Novo', text: 'Deploy documentado 100% em planos gratuitos de banco na nuvem.' },
       { tag: 'Melhoria', text: 'Comando de seed carrega o .env sozinho — sem export manual de variáveis.' },
-      { tag: 'Correção', text: 'Migration inicial sem BOM: Postgres rejeitava o arquivo gerado no Windows.' },
+      { tag: 'Correção', text: 'Ajuste no script inicial do banco que impedia a primeira instalação.' },
     ],
   },
   {
@@ -38,10 +38,10 @@ const editions: Entry[] = [
     intro:
       'O backend dedicado foi portado para funções serverless dentro do próprio app. Mesma API, zero servidor para cuidar.',
     items: [
-      { tag: 'Novo', text: '28 funções de API (auth, alunos, professores, matérias, turmas, notas, presença, avisos).' },
+      { tag: 'Novo', text: 'API completa (auth, alunos, professores, matérias, turmas, notas, presença, avisos).' },
       { tag: 'Novo', text: 'Páginas estáticas na CDN global e API sob demanda por rota.' },
       { tag: 'Melhoria', text: 'Matrículas sequenciais geradas pelo banco — sem risco de duplicar.' },
-      { tag: 'Segurança', text: 'Cabeçalhos de segurança, limite anti-força-bruta e segredo com fail-fast em produção.' },
+      { tag: 'Segurança', text: 'Proteções de acesso, bloqueio contra abuso e segredos obrigatórios em produção.' },
     ],
   },
   {
@@ -62,38 +62,54 @@ export default function ChangelogPage() {
   return (
     <div className="min-h-screen bg-white">
       <div className="border-b border-gray-200 bg-gray-50">
-        <div className="mx-auto max-w-3xl px-4 py-10 text-center">
-          <p className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-1.5 text-sm font-medium text-blue-700">
-            <HiOutlineSparkles className="h-4 w-4" />
-            Newsletter de produto
-          </p>
-          <h1 className="mt-4 text-4xl font-bold tracking-tight text-gray-900">
-            Novidades do EscolaApp
-          </h1>
-          <p className="mx-auto mt-3 max-w-xl text-gray-600">
-            Cada versão, contada como ela é: o que mudou, o que melhorou e o que foi corrigido.
-            Sem jargão, sem enrolação.
-          </p>
-          <div className="mt-6 flex items-center justify-center gap-4 text-sm">
-            <Link href="/" className="inline-flex items-center text-gray-600 hover:text-gray-900">
-              <HiOutlineArrowLeft className="mr-1 h-4 w-4" />
-              Apresentação
-            </Link>
-            <Link href="/login" className="btn-primary">
-              Entrar na plataforma
-            </Link>
+        <div className="mx-auto max-w-5xl px-4 py-10 grid gap-8 lg:grid-cols-[1fr_280px]">
+          <div>
+            <p className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-1.5 text-sm font-medium text-blue-700">
+              <HiOutlineSparkles className="h-4 w-4" />
+              Newsletter de produto
+            </p>
+            <h1 className="mt-4 text-4xl font-bold tracking-tight text-gray-900">
+              Novidades do EscolaApp
+            </h1>
+            <p className="mt-3 max-w-xl text-gray-600">
+              Cada versão, contada como ela é: o que mudou, o que melhorou e o que foi corrigido.
+              Sem jargão, sem enrolação.
+            </p>
+            <div className="mt-6 flex items-center gap-4 text-sm">
+              <Link href="/" className="inline-flex items-center text-gray-600 hover:text-gray-900">
+                <HiOutlineArrowLeft className="mr-1 h-4 w-4" />
+                Apresentação
+              </Link>
+              <Link href="/login" className="btn-primary">
+                Entrar na plataforma
+              </Link>
+            </div>
           </div>
+          <aside className="card h-fit lg:sticky lg:top-6">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-gray-500">Nesta página</h2>
+            <ul className="mt-3 space-y-2 text-sm">
+              {editions.map((e) => (
+                <li key={e.version}>
+                  <a href={`#${e.version}`} className="text-gray-700 hover:text-primary-600">
+                    <span className="font-bold">{e.version}</span>
+                    {' — '}
+                    {e.title}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </aside>
         </div>
       </div>
 
-      <main className="mx-auto max-w-3xl px-4 py-10">
+      <main className="mx-auto max-w-5xl px-4 py-10">
         <ol className="relative space-y-10 border-l-2 border-gray-200 pl-8">
           {editions.map((e) => (
             <li key={e.version} className="relative">
               <span className="absolute -left-[45px] flex h-8 w-8 items-center justify-center rounded-full bg-primary-600 text-white">
                 <HiOutlineAcademicCap className="h-5 w-5" />
               </span>
-              <article className="card">
+              <article id={e.version} className="card scroll-mt-6">
                 <div className="flex flex-wrap items-baseline gap-x-3">
                   <span className="rounded-md bg-gray-900 px-2 py-0.5 text-sm font-bold text-white">
                     {e.version}
