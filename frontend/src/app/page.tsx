@@ -67,6 +67,22 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'SoftwareApplication',
+            name: 'EscolaApp',
+            applicationCategory: 'EducationalApplication',
+            operatingSystem: 'Web',
+            inLanguage: 'pt-BR',
+            description:
+              'Sistema de gestão escolar: alunos, professores, turmas, notas, presença e avisos em um só lugar.',
+            offers: { '@type': 'Offer', price: '0', priceCurrency: 'BRL' },
+          }),
+        }}
+      />
       <header className="border-b border-gray-200">
         <div className="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">

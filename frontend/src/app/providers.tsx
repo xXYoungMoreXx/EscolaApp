@@ -1,8 +1,12 @@
 'use client';
 
-import { Toaster } from 'react-hot-toast';
+import dynamic from 'next/dynamic';
 import { AuthProvider } from '@/lib/auth-context';
 import { ThemeProvider } from '@/lib/theme-context';
+
+const Toaster = dynamic(() => import('react-hot-toast').then((m) => m.Toaster), {
+  ssr: false,
+});
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (

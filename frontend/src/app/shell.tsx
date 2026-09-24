@@ -8,12 +8,33 @@ import Header from '@/components/layout/Header';
 
 const PUBLIC_PATHS = ['/', '/login', '/register', '/forgot-password', '/changelog'];
 
+const PAGE_TITLES: Record<string, string> = {
+  '/': 'EscolaApp — Gestão escolar sem papelada',
+  '/login': 'Entrar | EscolaApp',
+  '/register': 'Criar conta | EscolaApp',
+  '/forgot-password': 'Recuperar acesso | EscolaApp',
+  '/change-password': 'Definir nova senha | EscolaApp',
+  '/changelog': 'Novidades | EscolaApp',
+  '/dashboard': 'Dashboard | EscolaApp',
+  '/students': 'Alunos | EscolaApp',
+  '/teachers': 'Professores | EscolaApp',
+  '/subjects': 'Matérias | EscolaApp',
+  '/classes': 'Turmas | EscolaApp',
+  '/grades': 'Notas | EscolaApp',
+  '/attendance': 'Presença | EscolaApp',
+  '/settings': 'Configurações | EscolaApp',
+};
+
 export default function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthenticated, isLoading } = useAuth();
 
   const isPublic = PUBLIC_PATHS.includes(pathname);
+
+  useEffect(() => {
+    document.title = PAGE_TITLES[pathname] ?? 'EscolaApp';
+  }, [pathname]);
 
   useEffect(() => {
     if (!isLoading && !isPublic && !isAuthenticated) {
