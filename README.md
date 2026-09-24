@@ -1,211 +1,88 @@
-# Sistema de Gestão Escolar
+# Sistema de Gestão Escolar — 100% Vercel
 
-Sistema completo para cadastro e gestão de alunos, professores, matérias, turmas, notas e presenças.
-
-## Stack
-
-### Backend
-- **Runtime**: Node.js 20
-- **Framework**: Fastify 5
-- **ORM**: Prisma 5
-- **Banco**: PostgreSQL 16
-- **Cache**: Redis 7
-- **Auth**: JWT + bcrypt
-- **Validação**: Zod
-- **Logger**: Pino
-
-### Frontend
-- **Framework**: Next.js 14 (App Router)
-- **UI**: Tailwind CSS + shadcn/ui style
-- **Charts**: Recharts
-- **Forms**: React Hook Form
-- **HTTP**: Axios
-
-### Infra
-- **Containerização**: Docker + Docker Compose
-- **Arquitetura**: Clean Architecture + DDD
-- **Padrões**: SOLID, TDD
-
-## Pré-requisitos
-
-- Docker e Docker Compose
-- Node.js 20+ (para desenvolvimento local)
-- PostgreSQL 16+ (ou usar Docker)
-
-## Início Rápido
-
-### Com Docker (Recomendado)
-
-```bash
-# Clonar o repositório
-git clone <repo-url>
-cd escola-system
-
-# Iniciar todos os serviços
-docker-compose up -d
-
-# Executar migrações e seed
-docker-compose exec backend npx prisma migrate dev
-docker-compose exec backend npx prisma db seed
-
-# Acessar
-# Frontend: http://localhost:3000
-# Backend: http://localhost:3333
-# API Docs: http://localhost:3333/documentation
-```
-
-### Desenvolvimento Local
-
-```bash
-# Backend
-cd backend
-npm install
-cp .env.example .env  # Configure as variáveis
-npx prisma generate
-npx prisma migrate dev
-npx prisma db seed
-npm run dev
-
-# Frontend (outra terminal)
-cd frontend
-npm install
-npm run dev
-```
-
-## Credenciais de Teste
-
-| Função | Email | Senha |
-|--------|-------|-------|
-| Admin | admin@escola.com | admin123 |
-| Coordenador | coordenador@escola.com | coord123 |
-| Professor | professor@escola.com | teacher123 |
-| Aluno | aluno1@escola.com | student123 |
-
-## Funcionalidades
-
-### Gestão de Alunos
-- Cadastro completo (dados pessoais, matrícula)
-- Listagem com paginação e busca
-- Edição e exclusão
-- Status: Ativo, Inativo, Transferido, Formado
-
-### Gestão de Professores
-- Cadastro com dados profissionais
-- Vinculação a matérias
-- Controle de admissão e salário
-
-### Matérias
-- Cadastro com código único
-- Carga horária
-- Descrição
-
-### Turmas
-- Vinculação professor-matéria
-- Turnos (manhã, tarde, noite)
-- Matrícula de alunos na turma
-
-### Notas
-- Lançamento por aluno, turma e matéria
-- Trimestres e nota final
-- Visualização com cores (aprovado/reprovado)
-
-### Presença
-- Registro individual e em lote
-- Status: Presente, Ausente, Justificado, Atrasado
-- Filtro por turma e data
+Alunos, professores, matérias, turmas, notas, presenças e notificações em um único app
+Next.js 14 (App Router + Route Handlers), deploy serverless na Vercel.
 
 ## Arquitetura
 
 ```
-escola-system/
-├── backend/
-│   ├── src/
-│   │   ├── domain/          # Entidades e repositórios
-│   │   ├── application/     # Casos de uso
-│   │   ├── infrastructure/  # Prisma, Auth, Cache
-│   │   ├── presentation/    # Controllers, Routes, Middlewares
-│   │   └── shared/          # Utils, Errors, Logger
-│   ├── prisma/              # Schema e migrations
-│   └── tests/               # Testes unitários
+EscolaApp/
 ├── frontend/
-│   ├── src/
-│   │   ├── app/             # Pages (App Router)
-│   │   ├── components/      # UI Components
-│   │   ├── lib/             # API, Auth, Utils
-│   │   └── types/           # TypeScript types
-│   └── public/
-├── docker-compose.yml
-└── README.md
+│   ├── src/app/            # Páginas (estáticas) + API em src/app/api/** (28 functions)
+│   ├── src/server/         # Regras de negócio (use-cases), Prisma, auth JWT, rate-limit
+│   ├── src/components/     # UI
+│   ├── src/lib/            # API client (same-origin), auth context
+│   ├── prisma/             # Schema PostgreSQL + migrations + seed
+│   └── .env.example
+└── vercel.json             # Build do monorepo (região gru1)
 ```
+
+- **Frontend**: páginas pré-renderizadas (estáticas) — CDN global.
+- **API**: Route Handlers Node (`runtime = 'nodejs'`, `force-dynamic`) — escala a zero por rota.
+- **Banco**: PostgreSQL serverless (Neon/Supabase) via Prisma com singleton por invocação quente.
+- **Rate limit**: Upstash Redis quando configurado, fallback em memória para dev.
+- **Auth**: JWT Bearer + roles (ADMIN, COORDINATOR, TEACHER, STUDENT), validação Zod em todas as entradas.
+
+## Deploy na Vercel
+
+1. Crie o banco: [Neon](https://neon.tech) (ou Supabase) → copie a **pooled connection string**.
+2. Importe o repo na Vercel (Root Directory `./` — o `vercel.json` já aponta para `frontend/`).
+3. Variáveis de ambiente:
+   - `DATABASE_URL` — string pooled do Neon (ex.: `...?pgbouncer=true&connection_limit=1`)
+   - `JWT_SECRET` — segredo longo e aleatório (**obrigatório**)
+   - `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — opcional (rate limit distribuído)
+4. Deploy. Depois, rode migration + seed contra o banco de produção:
+
+```bash
+cd frontend
+DATABASE_URL="<pooled-url>" npm run db:migrate
+DATABASE_URL="<pooled-url>" npm run db:seed
+```
+
+Pronto: `https://<projeto>.vercel.app` (frontend + `/api/*` na mesma origem, sem CORS).
+
+## Desenvolvimento local
+
+```bash
+cd frontend
+cp .env.example .env   # aponte DATABASE_URL para um Postgres local ou Neon dev
+npm install
+npm run db:migrate
+npm run db:seed
+npm run dev            # http://localhost:3000
+```
+
+## Credenciais de teste (seed)
+
+| Função      | Email                  | Senha      |
+| ----------- | ---------------------- | ---------- |
+| Admin       | admin@escola.com       | admin123   |
+| Coordenador | coordenador@escola.com | coord123   |
+| Professor   | professor@escola.com   | teacher123 |
+| Aluno       | aluno1@escola.com      | student123 |
 
 ## Segurança
 
-- JWT com expiração
-- Senhas com bcrypt (12 rounds)
-- Rate limiting (100 req/min)
-- Helmet headers
-- CORS configurado
-- Validação de entrada com Zod
-- Autenticação e autorização por roles
+- JWT obrigatório em todas as rotas (exceto login e health); roles por endpoint.
+- `JWT_SECRET` com fail-fast em produção; senhas bcrypt (12 rounds).
+- Headers: HSTS, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`.
+- Rate limit: 10 req/min no login, 100 req/min nas escritas (429 + `RATE_LIMITED`).
+- Prisma parametriza todas as queries; erros de banco mapeados (409/404) sem vazar detalhes.
 
-## Testes
+## API
 
-```bash
-# Backend
-cd backend
-npm run test
-npm run test:coverage
-```
+Base same-origin `/api`. Envelope `{ success, data }` / `{ success: false, error: { message, code } }`.
 
-## API Endpoints
-
-### Auth
-- `POST /api/auth/login` - Login
-- `GET /api/auth/me` - Dados do usuário
-
-### Students
-- `GET /api/students` - Listar
-- `POST /api/students` - Cadastrar
-- `GET /api/students/:id` - Buscar
-- `PUT /api/students/:id` - Atualizar
-- `DELETE /api/students/:id` - Excluir
-
-### Teachers
-- `GET /api/teachers` - Listar
-- `POST /api/teachers` - Cadastrar
-- `GET /api/teachers/:id` - Buscar
-- `PUT /api/teachers/:id` - Atualizar
-- `DELETE /api/teachers/:id` - Excluir
-
-### Subjects
-- `GET /api/subjects` - Listar
-- `POST /api/subjects` - Cadastrar
-- `GET /api/subjects/:id` - Buscar
-- `PUT /api/subjects/:id` - Atualizar
-- `DELETE /api/subjects/:id` - Excluir
-
-### Classes
-- `GET /api/classes` - Listar
-- `POST /api/classes` - Criar
-- `GET /api/classes/:id` - Buscar
-- `PUT /api/classes/:id` - Atualizar
-- `DELETE /api/classes/:id` - Excluir
-- `POST /api/classes/:id/enroll` - Matricular aluno
-- `DELETE /api/classes/:id/students/:studentId` - Remover aluno
-
-### Grades
-- `GET /api/grades` - Listar
-- `POST /api/grades` - Lançar
-- `GET /api/grades/student/:studentId` - Notas do aluno
-- `PUT /api/grades/:id` - Atualizar
-- `DELETE /api/grades/:id` - Excluir
-
-### Attendance
-- `GET /api/attendance` - Listar
-- `POST /api/attendance` - Registrar
-- `POST /api/attendance/bulk` - Registrar em lote
-- `GET /api/attendance/class/:classId` - Por turma
-- `DELETE /api/attendance/:id` - Excluir
+- Auth: `POST /api/auth/login`, `GET /api/auth/me`, `GET /api/auth/profile`,
+  `POST /api/auth/change-password`, `GET /api/auth/users`, `PATCH /api/auth/users/:id/active`
+- Alunos/professores/matérias: `GET+POST /api/{students,teachers,subjects}`, `GET+PUT+DELETE /api/{...}/:id`
+- Turmas: CRUD em `/api/classes/:id` + `POST /api/classes/:id/enroll` + `DELETE /api/classes/:id/students/:studentId`
+- Notas: `GET+POST /api/grades`, `PUT+DELETE /api/grades/:id`, `GET /api/grades/student/:studentId`
+- Presenças: `GET+POST /api/attendance`, `POST /api/attendance/bulk`, `DELETE /api/attendance/:id`,
+  `GET /api/attendance/class/:classId?date=...`
+- Notificações: `GET+POST /api/notifications`, `PATCH /api/notifications/:id/read`,
+  `POST /api/notifications/read-all`, `DELETE /api/notifications/:id`
+- `GET /api/health`
 
 ## Licença
 
