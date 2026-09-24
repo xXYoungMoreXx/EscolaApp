@@ -54,7 +54,7 @@ export default function ClassesPage() {
   const shiftLabels: Record<string, string> = { morning: 'Manhã', afternoon: 'Tarde', night: 'Noite' };
 
   return (
-    <div className="space-y-6">
+    <div className="app-page space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Turmas</h1>
@@ -73,8 +73,8 @@ export default function ClassesPage() {
         <button type="submit" className="btn-secondary">Buscar</button>
       </form>
 
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="card table-card overflow-hidden">
+        <div className="table-scroll overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="table-header">
               <tr>

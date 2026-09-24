@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 
-const PUBLIC_PATHS = ['/', '/login'];
+const PUBLIC_PATHS = ['/', '/login', '/changelog'];
 
 export default function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -38,11 +38,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-dvh overflow-hidden bg-gray-50">
       <Sidebar />
-      <div className="lg:ml-64">
+      <div className="lg:ml-64 h-full flex flex-col min-h-0">
         <Header />
-        <main className="p-4 lg:p-8">{children}</main>
+        <main className="app-viewport flex-1 min-h-0 overflow-y-auto p-4 lg:px-6 lg:py-4">{children}</main>
       </div>
     </div>
   );

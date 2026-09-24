@@ -125,7 +125,7 @@ export default function StudentsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="app-page space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Alunos</h1>
@@ -158,8 +158,8 @@ export default function StudentsPage() {
       </form>
 
       {/* Table */}
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="card table-card overflow-hidden">
+        <div className="table-scroll overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="table-header">
               <tr>

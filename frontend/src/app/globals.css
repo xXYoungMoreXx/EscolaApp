@@ -209,3 +209,31 @@
 .dark ::-webkit-scrollbar-thumb {
   background: #4b5563;
 }
+
+/* ============ VIEWPORT-FIT (sem scroll de página no desktop) ============
+   Páginas do app usam .app-page; tabelas rolam internamente (.table-scroll).
+   Telas pequenas mantêm scroll da página (acessibilidade primeiro). */
+@media (min-width: 1024px) {
+  .app-viewport {
+    overflow: hidden;
+  }
+  .app-page {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .app-page .table-card {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .app-page .table-card > .table-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
+}

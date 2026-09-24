@@ -16,6 +16,7 @@ import {
   HiOutlineLogout,
   HiOutlineMenu,
   HiOutlineX,
+  HiOutlineSparkles,
 } from 'react-icons/hi';
 
 const menuItems = [
@@ -27,6 +28,7 @@ const menuItems = [
   { href: '/grades', label: 'Notas', icon: HiOutlineClipboardList },
   { href: '/attendance', label: 'Presença', icon: HiOutlineCheckCircle },
   { href: '/settings', label: 'Configurações', icon: HiOutlineCog },
+  { href: '/changelog', label: 'Novidades', icon: HiOutlineSparkles },
 ];
 
 export default function Sidebar() {
