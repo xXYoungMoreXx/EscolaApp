@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import api from '@/lib/api';
 import {
   HiOutlineUserGroup,
@@ -10,10 +11,20 @@ import {
   HiOutlineClipboardList,
   HiOutlineCheckCircle,
 } from 'react-icons/hi';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
-} from 'recharts';
+
+const DashboardCharts = dynamic(() => import('@/components/dashboard-charts'), {
+  ssr: false,
+  loading: () => (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {[0, 1].map((i) => (
+        <div key={i} className="card animate-pulse">
+          <div className="h-5 w-40 rounded bg-gray-200 mb-4" />
+          <div className="h-[220px] rounded bg-gray-100" />
+        </div>
+      ))}
+    </div>
+  ),
+});
 
 interface DashboardStats {
   students: number;
@@ -23,8 +34,6 @@ interface DashboardStats {
   grades: number;
   attendance: number;
 }
-
-const COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({
@@ -77,21 +86,6 @@ export default function DashboardPage() {
     { label: 'Turmas', value: stats.classes, icon: HiOutlineCollection, color: 'bg-purple-500' },
   ];
 
-  const barData = [
-    { name: 'Jan', alunos: 45, professores: 8 },
-    { name: 'Fev', alunos: 52, professores: 9 },
-    { name: 'Mar', alunos: 48, professores: 8 },
-    { name: 'Abr', alunos: 55, professores: 10 },
-    { name: 'Mai', alunos: 60, professores: 10 },
-    { name: 'Jun', alunos: 58, professores: 11 },
-  ];
-
-  const pieData = [
-    { name: 'Manhã', value: 45 },
-    { name: 'Tarde', value: 35 },
-    { name: 'Noite', value: 20 },
-  ];
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -125,46 +119,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Alunos por Mês</h3>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={barData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="alunos" fill="#3b82f6" name="Alunos" />
-              <Bar dataKey="professores" fill="#22c55e" name="Professores" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="card">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Turmas por Turno</h3>
-          <ResponsiveContainer width="100%" height={220}>
-            <PieChart>
-              <Pie
-                data={pieData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {pieData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+      <DashboardCharts />
 
       {/* Quick Actions */}
       <div className="card">

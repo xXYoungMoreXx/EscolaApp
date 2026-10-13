@@ -62,12 +62,8 @@ npm run dev            # http://localhost:3000
 
 ## Credenciais de teste (seed)
 
-| Função      | Email                  | Senha      |
-| ----------- | ---------------------- | ---------- |
-| Admin       | admin@escola.com       | admin123   |
-| Coordenador | coordenador@escola.com | coord123   |
-| Professor   | professor@escola.com   | teacher123 |
-| Aluno       | aluno1@escola.com      | student123 |
+Criadas por `npm run db:seed` (admin, coordenador, professor, aluno).
+Detalhes no seed — troque as senhas ao subir produção.
 
 ## Segurança
 

@@ -20,6 +20,19 @@ const tagStyles: Record<Tag, string> = {
 
 const editions: Entry[] = [
   {
+    version: 'v1.3',
+    date: 'outubro de 2026',
+    title: 'Contas, acesso e velocidade',
+    intro:
+      'Cadastro público com ativação, recuperação de senha com aprovação manual e um app visivelmente mais rápido.',
+    items: [
+      { tag: 'Novo', text: 'Criação de conta, recuperação de senha e troca forçada de senha temporária.' },
+      { tag: 'Novo', text: 'Página de apresentação para quem chega e newsletter de novidades.' },
+      { tag: 'Melhoria', text: 'Gráficos e avisos carregados sob demanda — dashboard bem mais leve.' },
+      { tag: 'Segurança', text: 'Senhas fortes obrigatórias e credenciais de teste fora do login.' },
+    ],
+  },
+  {
     version: 'v1.2',
     date: 'setembro de 2026',
     title: 'Banco na nuvem, do jeito gratuito',
