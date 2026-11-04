@@ -3,6 +3,7 @@ import { ok, noContent, fail, requireAuth, requireRole } from '@/server/http';
 import { allow, clientKey, rateLimited } from '@/server/rate-limit';
 import { UpdateGradeUseCase, DeleteGradeUseCase } from '@/server/application/use-cases';
 import { PrismaGradeRepository } from '@/server/infrastructure/database/prisma/repositories';
+import { updateGradeSchema } from '@/server/shared/validators';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,9 +15,10 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     const user = requireAuth(req);
     requireRole(user, 'ADMIN', 'COORDINATOR', 'TEACHER');
     if (!(await allow(clientKey(req, 'write')))) return rateLimited();
+    const body = updateGradeSchema.parse(await req.json());
     const result = await new UpdateGradeUseCase(new PrismaGradeRepository()).execute(
       params.id,
-      await req.json(),
+      body,
     );
     return ok(result);
   } catch (error) {

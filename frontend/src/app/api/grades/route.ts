@@ -1,8 +1,12 @@
 ﻿import { NextRequest } from 'next/server';
+import { z } from 'zod';
 import { okPage, okCreated, fail, requireAuth, requireRole, getPagination } from '@/server/http';
 import { allow, clientKey, rateLimited } from '@/server/rate-limit';
 import { CreateGradeUseCase, GetAllGradesUseCase } from '@/server/application/use-cases';
 import { PrismaGradeRepository } from '@/server/infrastructure/database/prisma/repositories';
+import { createGradeSchema } from '@/server/shared/validators';
+
+const bodySchema = createGradeSchema.extend({ teacherId: z.string().uuid().optional() });
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,9 +28,11 @@ export async function POST(req: NextRequest) {
     const user = requireAuth(req);
     requireRole(user, 'ADMIN', 'COORDINATOR', 'TEACHER');
     if (!(await allow(clientKey(req, 'write')))) return rateLimited();
-    const result = await new CreateGradeUseCase(new PrismaGradeRepository()).execute(
-      await req.json(),
-    );
+    const body = bodySchema.parse(await req.json());
+    const result = await new CreateGradeUseCase(new PrismaGradeRepository()).execute(body, {
+      role: user.role,
+      userId: user.userId,
+    });
     return okCreated(result);
   } catch (error) {
     return fail(error);

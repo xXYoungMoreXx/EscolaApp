@@ -1,23 +1,37 @@
 import { GradeRepository } from '../../domain/repositories';
-import { NotFoundError } from '../../shared/errors';
+import { getPrisma } from '../../infrastructure/database/prisma/client';
+import { NotFoundError, ValidationError } from '../../shared/errors';
 import { logger } from '../../shared/logger';
 
 export class CreateGradeUseCase {
   constructor(private gradeRepository: GradeRepository) {}
 
-  async execute(data: {
-    studentId: string;
-    classId: string;
-    teacherId: string;
-    subjectId: string;
-    value: number;
-    period: string;
-  }) {
+  async execute(
+    data: {
+      studentId: string;
+      classId: string;
+      teacherId?: string;
+      subjectId: string;
+      value: number;
+      period: string;
+    },
+    actor?: { role: string; userId: string },
+  ) {
     if (data.value < 0 || data.value > 10) {
-      throw new Error('Nota deve estar entre 0 e 10');
+      throw new ValidationError('Nota deve estar entre 0 e 10');
     }
 
-    const grade = await this.gradeRepository.create(data);
+    // Professor lança em nome próprio; Admin/Coordenador indica o professor.
+    let { teacherId } = data;
+    if (!teacherId && actor?.role === 'TEACHER') {
+      const profile = await getPrisma().teacher.findUnique({ where: { userId: actor.userId } });
+      teacherId = profile?.id;
+    }
+    if (!teacherId) {
+      throw new ValidationError('teacherId é obrigatório para lançar nota');
+    }
+
+    const grade = await this.gradeRepository.create({ ...data, teacherId });
     logger.info({ gradeId: grade.id, studentId: data.studentId }, 'Grade created');
 
     // Aviso automático para o aluno
@@ -77,7 +91,7 @@ export class UpdateGradeUseCase {
     }
 
     if (data.value !== undefined && (data.value < 0 || data.value > 10)) {
-      throw new Error('Nota deve estar entre 0 e 10');
+      throw new ValidationError('Nota deve estar entre 0 e 10');
     }
 
     const updated = await this.gradeRepository.update(id, data);

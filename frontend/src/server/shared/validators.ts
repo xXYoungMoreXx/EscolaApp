@@ -83,6 +83,11 @@ export const createGradeSchema = z.object({
   period: z.enum(['1trimestre', '2trimestre', '3trimestre', 'final']),
 });
 
+export const updateGradeSchema = z.object({
+  value: z.number().min(0).max(10).optional(),
+  period: z.enum(['1trimestre', '2trimestre', '3trimestre', 'final']).optional(),
+});
+
 export const createAttendanceSchema = z.object({
   studentId: z.string().uuid(),
   classId: z.string().uuid(),
