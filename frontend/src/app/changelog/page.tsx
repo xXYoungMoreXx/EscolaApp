@@ -20,6 +20,19 @@ const tagStyles: Record<Tag, string> = {
 
 const editions: Entry[] = [
   {
+    version: 'v1.4',
+    date: 'novembro de 2026',
+    title: 'Rotinas provadas e aviso por email',
+    intro:
+      'O fluxo inteiro da escola passou a ser testado ponta a ponta — e o cadastro passa a avisar por email.',
+    items: [
+      { tag: 'Novo', text: 'Email de confirmação no cadastro e de liberação quando a conta é ativada.' },
+      { tag: 'Melhoria', text: 'Lançamento de notas com validação de professor e faixa de 0 a 10 (erros claros).' },
+      { tag: 'Correção', text: 'Cadastros com CPF ou email repetido não deixam mais dados pela metade no banco.' },
+      { tag: 'Segurança', text: 'Testes ponta a ponta cobrindo acesso, bloqueio, recuperação e rotinas acadêmicas.' },
+    ],
+  },
+  {
     version: 'v1.3',
     date: 'outubro de 2026',
     title: 'Contas, acesso e velocidade',
@@ -27,7 +40,7 @@ const editions: Entry[] = [
       'Cadastro público com ativação, recuperação de senha com aprovação manual e um app visivelmente mais rápido.',
     items: [
       { tag: 'Novo', text: 'Criação de conta, recuperação de senha e troca forçada de senha temporária.' },
-      { tag: 'Novo', text: 'Página de apresentação para quem chega e newsletter de novidades.' },
+      { tag: 'Novo', text: 'Página de apresentação para quem chega, com cadastro público.' },
       { tag: 'Melhoria', text: 'Gráficos e avisos carregados sob demanda — dashboard bem mais leve.' },
       { tag: 'Segurança', text: 'Senhas fortes obrigatórias e credenciais de teste fora do login.' },
     ],
@@ -79,7 +92,7 @@ export default function ChangelogPage() {
           <div>
             <p className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-1.5 text-sm font-medium text-blue-700">
               <HiOutlineSparkles className="h-4 w-4" />
-              Newsletter de produto
+              Diário de versões
             </p>
             <h1 className="mt-4 text-4xl font-bold tracking-tight text-gray-900">
               Novidades do EscolaApp

@@ -16,30 +16,30 @@ import {
 } from 'react-icons/hi';
 
 const stats = [
+  { value: '1', label: 'só lugar para toda a escola' },
   { value: '8', label: 'módulos integrados' },
-  { value: '100%', label: 'na nuvem, sem instalar nada' },
   { value: '4', label: 'perfis de acesso' },
-  { value: '0', label: 'planilhas paralelas' },
+  { value: '100%', label: 'na nuvem, sem instalar nada' },
 ];
 
 const personas = [
   {
     icon: HiOutlineChartBar,
     role: 'Direção e coordenação',
-    pain: 'Dados espalhados em planilhas e cadernos.',
-    gain: 'Matrículas, turmas e desempenho em um painel só.',
+    pain: 'Cada pedaço da escola vive em uma planilha diferente',
+    gain: 'Matrículas, turmas e desempenho conversam entre si, em um painel só.',
   },
   {
     icon: HiOutlineClipboardList,
     role: 'Professores',
-    pain: 'Chamada e notas tomam o fim da aula.',
-    gain: 'Presença em lote e notas lançadas em segundos.',
+    pain: 'Chamada e notas tomam o fim de cada aula',
+    gain: 'Presença em lote e notas lançadas em segundos, direto da turma.',
   },
   {
     icon: HiOutlineUserGroup,
     role: 'Secretaria',
-    pain: 'Cadastro refeito a cada semestre.',
-    gain: 'Aluno cadastrado uma vez, matrícula automática com avisos.',
+    pain: 'Cadastro de aluno refeito a cada semestre',
+    gain: 'O aluno entra uma vez e renova matrícula com aviso automático.',
   },
 ];
 
@@ -118,12 +118,12 @@ export default function Home() {
               Menos planilha, mais aula.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-3">
-              <Link href="/login" className="btn-primary px-6 py-3 text-base">
-                Acessar a plataforma
+              <Link href="/register" className="btn-primary px-6 py-3 text-base">
+                Criar conta grátis
                 <HiOutlineArrowRight className="ml-2 h-5 w-5" />
               </Link>
-              <Link href="/changelog" className="btn-secondary px-6 py-3 text-base">
-                Ver novidades
+              <Link href="/login" className="btn-secondary px-6 py-3 text-base">
+                Já tenho conta
               </Link>
             </div>
             <dl className="mt-10 grid max-w-2xl grid-cols-2 sm:grid-cols-4 gap-6">
@@ -135,7 +135,7 @@ export default function Home() {
               ))}
             </dl>
           </div>
-          <aside className="lg:col-span-2 card !p-8">
+          <aside className="lg:col-span-2 card p-8">
             <h2 className="text-lg font-bold text-gray-900">O que você resolve hoje</h2>
             <ul className="mt-4 space-y-3 text-sm text-gray-700">
               {[
@@ -150,7 +150,7 @@ export default function Home() {
                 </li>
               ))}
             </ul>
-            <Link href="/login" className="btn-primary mt-6 w-full px-6 py-3 text-base">
+            <Link href="/register" className="btn-primary mt-6 w-full px-6 py-3 text-base">
               Começar agora
               <HiOutlineArrowRight className="ml-2 h-5 w-5" />
             </Link>
@@ -170,8 +170,8 @@ export default function Home() {
                 <article key={p.role} className="card">
                   <p.icon className="h-8 w-8 text-primary-600" />
                   <h3 className="mt-3 font-semibold text-gray-900">{p.role}</h3>
-                  <p className="mt-1 text-sm text-gray-500">Dor: {p.pain}</p>
-                  <p className="mt-2 text-sm font-medium text-gray-700">Ganho: {p.gain}</p>
+                  <p className="mt-1 text-sm text-gray-500">{p.pain}</p>
+                  <p className="mt-2 text-sm font-medium text-gray-700">{p.gain}</p>
                 </article>
               ))}
             </div>
@@ -211,10 +211,16 @@ export default function Home() {
                 ),
               )}
             </div>
-            <Link href="/login" className="btn-primary mt-6 px-6 py-3 text-base">
-              Entrar agora
+            <Link href="/register" className="btn-primary mt-6 px-6 py-3 text-base">
+              Criar conta grátis
               <HiOutlineArrowRight className="ml-2 h-5 w-5" />
             </Link>
+            <p className="mt-3 text-sm text-gray-400">
+              Já tem conta?{' '}
+              <Link href="/login" className="text-gray-300 underline underline-offset-2 hover:text-white">
+                Entrar
+              </Link>
+            </p>
           </div>
         </section>
       </main>
@@ -225,6 +231,9 @@ export default function Home() {
           <div className="flex items-center gap-4">
             <Link href="/changelog" className="hover:text-gray-900">
               Novidades
+            </Link>
+            <Link href="/register" className="hover:text-gray-900">
+              Criar conta
             </Link>
             <Link href="/login" className="hover:text-gray-900">
               Entrar

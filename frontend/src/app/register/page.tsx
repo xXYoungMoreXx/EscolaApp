@@ -7,15 +7,31 @@ import toast from 'react-hot-toast';
 import { HiOutlineAcademicCap } from 'react-icons/hi';
 
 export default function RegisterPage() {
-  const [form, setForm] = useState({ name: '', cpf: '', email: '', password: '', phone: '' });
+  const [form, setForm] = useState({ name: '', cpf: '', email: '', password: '', confirm: '', phone: '' });
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm({ ...form, [k]: e.target.value });
 
+  // Máscara de CPF: o servidor valida o formato 000.000.000-00.
+  const setCpf = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
+    const masked = [
+      digits.slice(0, 3),
+      digits.length > 3 ? '.' + digits.slice(3, 6) : '',
+      digits.length > 6 ? '.' + digits.slice(6, 9) : '',
+      digits.length > 9 ? '-' + digits.slice(9, 11) : '',
+    ].join('');
+    setForm({ ...form, cpf: masked });
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (form.password !== form.confirm) {
+      toast.error('As senhas não conferem');
+      return;
+    }
     setLoading(true);
     try {
       await api.post('/api/auth/register', {
@@ -46,7 +62,8 @@ export default function RegisterPage() {
             <div className="text-center space-y-4">
               <h2 className="text-2xl font-bold text-gray-900">Conta criada!</h2>
               <p className="text-gray-600">
-                Aguarde a ativação por um administrador. Você será avisado para fazer login.
+                Aguarde a ativação por um administrador. Você será avisado por email
+                quando sua conta for liberada.
               </p>
               <Link href="/login" className="btn-primary w-full py-3">
                 Voltar ao login
@@ -63,7 +80,7 @@ export default function RegisterPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="label" htmlFor="cpf">CPF *</label>
-                    <input id="cpf" className="input-field" placeholder="000.000.000-00" value={form.cpf} onChange={set('cpf')} required />
+                    <input id="cpf" className="input-field" placeholder="000.000.000-00" value={form.cpf} onChange={setCpf} required inputMode="numeric" />
                   </div>
                   <div>
                     <label className="label" htmlFor="phone">Telefone</label>
@@ -78,6 +95,10 @@ export default function RegisterPage() {
                   <label className="label" htmlFor="password">Senha *</label>
                   <input id="password" type="password" className="input-field" value={form.password} onChange={set('password')} required minLength={8} autoComplete="new-password" />
                   <p className="mt-1 text-xs text-gray-500">Mínimo 8 caracteres, com letras e números.</p>
+                </div>
+                <div>
+                  <label className="label" htmlFor="confirm">Confirmar senha *</label>
+                  <input id="confirm" type="password" className="input-field" value={form.confirm} onChange={set('confirm')} required autoComplete="new-password" />
                 </div>
                 <button type="submit" disabled={loading} className="btn-primary w-full py-3">
                   {loading ? 'Criando...' : 'Criar conta'}

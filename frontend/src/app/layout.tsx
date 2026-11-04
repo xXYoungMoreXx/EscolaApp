@@ -23,11 +23,13 @@ export const metadata: Metadata = {
     siteName: 'EscolaApp',
     title: 'EscolaApp — Gestão escolar sem papelada',
     description: 'Alunos, professores, turmas, notas, presença e avisos em um só lugar.',
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'EscolaApp — Gestão escolar sem papelada' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'EscolaApp — Gestão escolar sem papelada',
     description: 'Alunos, professores, turmas, notas, presença e avisos em um só lugar.',
+    images: ['/og-image.png'],
   },
 };
 
