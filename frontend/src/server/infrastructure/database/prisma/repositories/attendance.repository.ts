@@ -68,28 +68,67 @@ export class PrismaAttendanceRepository implements AttendanceRepository {
   }
 
   async create(data: any) {
-    return this.prisma.attendance.create({
-      data: {
+    return this.upsert(data);
+  }
+
+  /** Unique por (aluno, turma, dia) — re-chamada no mesmo dia atualiza o registro. */
+  async upsert(data: {
+    studentId: string;
+    classId: string;
+    date: string;
+    status: string;
+    notes?: string;
+  }) {
+    const date = new Date(`${data.date.slice(0, 10)}T00:00:00.000Z`);
+    return this.prisma.attendance.upsert({
+      where: {
+        studentId_classId_date: {
+          studentId: data.studentId,
+          classId: data.classId,
+          date,
+        },
+      },
+      update: { status: data.status, notes: data.notes },
+      create: {
         studentId: data.studentId,
         classId: data.classId,
-        date: new Date(data.date),
+        date,
         status: data.status,
         notes: data.notes,
       },
     });
   }
 
-  async createMany(data: any[]) {
-    const result = await this.prisma.attendance.createMany({
-      data: data.map((d) => ({
-        studentId: d.studentId,
-        classId: d.classId,
-        date: new Date(d.date),
-        status: d.status,
-        notes: d.notes,
-      })),
-    });
-    return result.count;
+  async upsertMany(records: Array<{
+    studentId: string;
+    classId: string;
+    date: string;
+    status: string;
+    notes?: string;
+  }>) {
+    await this.prisma.$transaction(
+      records.map((d) => {
+        const date = new Date(`${d.date.slice(0, 10)}T00:00:00.000Z`);
+        return this.prisma.attendance.upsert({
+          where: {
+            studentId_classId_date: {
+              studentId: d.studentId,
+              classId: d.classId,
+              date,
+            },
+          },
+          update: { status: d.status, notes: d.notes },
+          create: {
+            studentId: d.studentId,
+            classId: d.classId,
+            date,
+            status: d.status,
+            notes: d.notes,
+          },
+        });
+      }),
+    );
+    return records.length;
   }
 
   async delete(id: string) {

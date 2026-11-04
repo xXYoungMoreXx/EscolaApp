@@ -90,6 +90,16 @@ export interface AttendanceRepository {
   findByClassAndDate(classId: string, date: Date): Promise<any[]>;
   findAll(params: PaginationParams): Promise<PaginatedResult<any>>;
   create(data: any): Promise<any>;
-  createMany(data: any[]): Promise<number>;
+  upsert(data: any): Promise<any>;
+  upsertMany(data: any[]): Promise<number>;
+  delete(id: string): Promise<void>;
+}
+
+export interface GuardianRepository {
+  findById(id: string): Promise<any | null>;
+  findAll(params: PaginationParams): Promise<PaginatedResult<any>>;
+  findByStudentId(studentId: string): Promise<any[]>;
+  create(data: any): Promise<any>;
+  linkStudents(guardianId: string, studentIds: string[]): Promise<void>;
   delete(id: string): Promise<void>;
 }

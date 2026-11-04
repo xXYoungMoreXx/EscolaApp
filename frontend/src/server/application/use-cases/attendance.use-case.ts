@@ -12,8 +12,8 @@ export class CreateAttendanceUseCase {
     status: string;
     notes?: string;
   }) {
-    const attendance = await this.attendanceRepository.create(data);
-    logger.info({ attendanceId: attendance.id, studentId: data.studentId }, 'Attendance created');
+    const attendance = await this.attendanceRepository.upsert(data);
+    logger.info({ attendanceId: attendance.id, studentId: data.studentId }, 'Attendance recorded');
     return attendance;
   }
 }
@@ -28,8 +28,11 @@ export class BulkCreateAttendanceUseCase {
     status: string;
     notes?: string;
   }>) {
-    const count = await this.attendanceRepository.createMany(records);
-    logger.info({ count, classId: records[0]?.classId }, 'Bulk attendance created');
+    // Registros repetidos no mesmo lote: o último vence.
+    const unique = new Map<string, (typeof records)[number]>();
+    for (const r of records) unique.set(`${r.studentId}|${r.classId}|${r.date}`, r);
+    const count = await this.attendanceRepository.upsertMany([...unique.values()]);
+    logger.info({ count, classId: records[0]?.classId }, 'Bulk attendance recorded');
     return { count };
   }
 }

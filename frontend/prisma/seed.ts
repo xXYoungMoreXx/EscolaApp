@@ -236,6 +236,41 @@ async function main() {
     }
   }
 
+  // Guardian (responsável) ligado ao primeiro aluno — idempotente
+  const guardianPassword = await bcrypt.hash('guardian123', 12);
+  const guardianUser = await prisma.user.upsert({
+    where: { email: 'responsavel@escola.com' },
+    update: {},
+    create: {
+      email: 'responsavel@escola.com',
+      password: guardianPassword,
+      role: 'GUARDIAN',
+    },
+  });
+  const guardianPerson = await prisma.person.upsert({
+    where: { cpf: '555.666.777-88' },
+    update: {},
+    create: {
+      name: 'Carlos Responsável',
+      cpf: '555.666.777-88',
+      phone: '(11) 98888-7777',
+    },
+  });
+  const guardian = await prisma.guardian.upsert({
+    where: { userId: guardianUser.id },
+    update: {},
+    create: {
+      userId: guardianUser.id,
+      personId: guardianPerson.id,
+      relationship: 'PAI',
+    },
+  });
+  await prisma.studentGuardian.upsert({
+    where: { guardianId_studentId: { guardianId: guardian.id, studentId: students[0].id } },
+    update: {},
+    create: { guardianId: guardian.id, studentId: students[0].id },
+  });
+
   console.log('Seed completed successfully!');
   console.log('---');
   console.log('Default credentials:');
@@ -243,6 +278,7 @@ async function main() {
   console.log('  Coordinator: coordenador@escola.com / coord123');
   console.log('  Teacher: professor@escola.com / teacher123');
   console.log('  Student: aluno1@escola.com / student123');
+  console.log('  Guardian: responsavel@escola.com / guardian123');
 }
 
 main()

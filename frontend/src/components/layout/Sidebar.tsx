@@ -21,12 +21,13 @@ import {
 
 const menuItems = [
   { href: '/dashboard', label: 'Dashboard', icon: HiOutlineHome },
-  { href: '/students', label: 'Alunos', icon: HiOutlineUserGroup },
-  { href: '/teachers', label: 'Professores', icon: HiOutlineAcademicCap },
-  { href: '/subjects', label: 'Matérias', icon: HiOutlineBookOpen },
-  { href: '/classes', label: 'Turmas', icon: HiOutlineCollection },
-  { href: '/grades', label: 'Notas', icon: HiOutlineClipboardList },
-  { href: '/attendance', label: 'Presença', icon: HiOutlineCheckCircle },
+  { href: '/boletim', label: 'Boletim', icon: HiOutlineClipboardList, roles: ['STUDENT', 'GUARDIAN'] },
+  { href: '/students', label: 'Alunos', icon: HiOutlineUserGroup, roles: ['ADMIN', 'COORDINATOR', 'TEACHER'] },
+  { href: '/teachers', label: 'Professores', icon: HiOutlineAcademicCap, roles: ['ADMIN', 'COORDINATOR'] },
+  { href: '/subjects', label: 'Matérias', icon: HiOutlineBookOpen, roles: ['ADMIN', 'COORDINATOR'] },
+  { href: '/classes', label: 'Turmas', icon: HiOutlineCollection, roles: ['ADMIN', 'COORDINATOR'] },
+  { href: '/grades', label: 'Notas', icon: HiOutlineClipboardList, roles: ['ADMIN', 'COORDINATOR', 'TEACHER'] },
+  { href: '/attendance', label: 'Presença', icon: HiOutlineCheckCircle, roles: ['ADMIN', 'COORDINATOR', 'TEACHER'] },
   { href: '/settings', label: 'Configurações', icon: HiOutlineCog },
   { href: '/changelog', label: 'Novidades', icon: HiOutlineSparkles },
 ];
@@ -45,6 +46,7 @@ export default function Sidebar() {
     ADMIN: 'Administrador',
     COORDINATOR: 'Coordenador',
     TEACHER: 'Professor',
+    GUARDIAN: 'Responsável',
     STUDENT: 'Aluno',
   };
 
@@ -106,7 +108,9 @@ export default function Sidebar() {
 
           {/* Navigation */}
           <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-            {menuItems.map((item) => (
+            {menuItems
+              .filter((item) => !item.roles || item.roles.includes(user?.role || ''))
+              .map((item) => (
               <Link
                 key={item.href}
                 href={item.href}

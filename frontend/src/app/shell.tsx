@@ -16,6 +16,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/change-password': 'Definir nova senha | EscolaApp',
   '/changelog': 'Novidades | EscolaApp',
   '/dashboard': 'Dashboard | EscolaApp',
+  '/boletim': 'Boletim | EscolaApp',
   '/students': 'Alunos | EscolaApp',
   '/teachers': 'Professores | EscolaApp',
   '/subjects': 'Matérias | EscolaApp',

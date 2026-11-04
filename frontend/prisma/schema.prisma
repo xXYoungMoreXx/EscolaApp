@@ -11,7 +11,7 @@ model User {
   id        String   @id @default(uuid())
   email     String   @unique
   password  String
-  role      String   // ADMIN | TEACHER | STUDENT | COORDINATOR
+  role      String   // ADMIN | TEACHER | STUDENT | COORDINATOR | GUARDIAN
   active    Boolean  @default(true)
   mustChangePassword Boolean @default(false)
   createdAt DateTime @default(now())
@@ -19,6 +19,7 @@ model User {
 
   student  Student?
   teacher  Teacher?
+  guardian Guardian?
   notifications Notification[]
   resetRequests PasswordResetRequest[]
 }
@@ -40,6 +41,7 @@ model Person {
 
   student Student?
   teacher Teacher?
+  guardian Guardian?
 }
 
 model Student {
@@ -57,6 +59,7 @@ model Student {
   grades        Grade[]
   attendances   Attendance[]
   classStudents ClassStudent[]
+  guardians     StudentGuardian[]
 }
 
 model Teacher {
@@ -153,6 +156,31 @@ model Attendance {
   class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, classId, date])
+}
+
+model StudentGuardian {
+  id         String   @id @default(uuid())
+  guardianId String
+  studentId  String
+  createdAt  DateTime @default(now())
+
+  guardian Guardian @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+  student  Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([guardianId, studentId])
+}
+
+model Guardian {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  personId     String   @unique
+  relationship String?  // PAI | MAE | RESPONSAVEL
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  person   Person           @relation(fields: [personId], references: [id], onDelete: Cascade)
+  students StudentGuardian[]
 }
 
 model Notification {

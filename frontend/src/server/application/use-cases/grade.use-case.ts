@@ -1,6 +1,6 @@
 import { GradeRepository } from '../../domain/repositories';
 import { getPrisma } from '../../infrastructure/database/prisma/client';
-import { NotFoundError, ValidationError } from '../../shared/errors';
+import { NotFoundError, ValidationError, ConflictError } from '../../shared/errors';
 import { logger } from '../../shared/logger';
 
 export class CreateGradeUseCase {
@@ -31,6 +31,20 @@ export class CreateGradeUseCase {
       throw new ValidationError('teacherId é obrigatório para lançar nota');
     }
 
+    // Chave única (aluno, turma, matéria, período) — atualização tem endpoint próprio (PUT).
+    const duplicate = await getPrisma().grade.findFirst({
+      where: {
+        studentId: data.studentId,
+        classId: data.classId,
+        subjectId: data.subjectId,
+        period: data.period,
+      },
+      select: { id: true },
+    });
+    if (duplicate) {
+      throw new ConflictError('Já existe nota lançada para este aluno, matéria e período');
+    }
+
     const grade = await this.gradeRepository.create({ ...data, teacherId });
     logger.info({ gradeId: grade.id, studentId: data.studentId }, 'Grade created');
 
@@ -52,6 +66,20 @@ export class CreateGradeUseCase {
             type: 'grade',
           },
         });
+        // Responsáveis vinculados recebem o mesmo aviso no próprio painel.
+        const links = await prisma.studentGuardian.findMany({
+          where: { studentId: student.id },
+          include: { guardian: { include: { user: true } } },
+        });
+        const guardians = links
+          .filter((l) => l.guardian?.user?.active)
+          .map((l) => ({
+            userId: l.guardian.user.id,
+            title: 'Nova nota lançada',
+            message: `Nova nota de ${subject?.name ?? 'uma matéria'} (${data.period}): ${data.value}.`,
+            type: 'grade',
+          }));
+        if (guardians.length) await prisma.notification.createMany({ data: guardians });
       }
     } catch (error) {
       logger.warn({ err: error }, 'Failed to create grade notification');

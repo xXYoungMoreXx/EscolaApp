@@ -108,6 +108,9 @@ r = await call('POST', '/api/grades', { token: A, body: { studentId: student.id,
 ok(r.status === 201, 'admin lança nota com teacherId explícito', JSON.stringify(r.json));
 const gradeId = r.json?.data?.id;
 
+r = await call('POST', '/api/grades', { token: A, body: { studentId: student.id, classId, subjectId, teacherId: seededClass.teacherId, value: 7, period: '1trimestre' } });
+ok(r.status === 409, 'REGRESSÃO: segunda nota no mesmo aluno/turma/matéria/período é recusada (409)', JSON.stringify(r.json));
+
 r = await call('POST', '/api/grades', { token: A, body: { studentId: student.id, classId, subjectId, teacherId: seededClass.teacherId, value: 11, period: '1trimestre' } });
 ok(r.status === 400 || r.status === 422, 'REGRESSÃO 500: nota fora da faixa devolve erro de validação (4xx)', JSON.stringify(r.json));
 
@@ -122,6 +125,16 @@ r = await call('POST', '/api/attendance/bulk', { token: A, body: { records: [
   { studentId: student.id, classId, date: new Date(Date.now() - 86400000).toISOString(), status: 'ABSENT' },
 ] } });
 ok(r.status === 201, 'presença em lote (datas ISO)', JSON.stringify(r.json));
+
+// Re-chamada no mesmo dia: upsert (atualiza, não duplica nem explode)
+r = await call('POST', '/api/attendance/bulk', { token: A, body: { records: [
+  { studentId: student.id, classId, date: new Date().toISOString(), status: 'PRESENT' },
+] } });
+ok(r.status === 201, 'REGRESSÃO: re-chamada no mesmo dia atualiza em vez de 500', JSON.stringify(r.json));
+
+r = await call('GET', `/api/attendance/class/${classId}?date=${new Date().toISOString().slice(0, 10)}`, { token: A });
+const todayRecords = (r.json?.data ?? []).filter((a) => a.studentId === student.id);
+ok(todayRecords.length === 1 && todayRecords[0].status === 'PRESENT', 'REGRESSÃO: uma marca única por aluno/dia (status atualizado)', JSON.stringify(r.json));
 
 r = await call('GET', `/api/attendance/class/${classId}?date=${new Date().toISOString().slice(0, 10)}`, { token: A });
 ok(r.status === 200, 'chamada da turma por data');
@@ -154,7 +167,53 @@ ok(r.status === 200 && r.json?.status === 'ok', 'health público');
 r = await call('GET', '/api/students');
 ok(r.status === 401, 'endpoint sem token é 401');
 
-console.log('6) LIMPEZA');
+console.log('6) BOLETIM + RESPONSÁVEL');
+r = await call('GET', '/api/grades/my-report', { token: S });
+const e2eItem = r.json?.data?.[0]?.items?.find?.((i) => i.subject.includes('E2E'));
+ok(r.status === 200 && r.json?.data?.length === 1, 'aluno vê o próprio boletim', JSON.stringify(r.json).slice(0, 200));
+ok(e2eItem && e2eItem.average === 9.2, 'boletim reflete média da matéria E2E (9.2)', JSON.stringify(e2eItem));
+ok(e2eItem && e2eItem.frequency === 50, 'boletim reflete frequência do aluno (1/2 → 50%)', JSON.stringify(e2eItem));
+
+r = await call('GET', `/api/grades/student/${student.id}`, { token: S });
+ok(r.status === 200, 'aluno consulta as próprias notas direto por rota');
+
+r = await call('GET', `/api/grades/student/${student.id}`, { token: A });
+ok(r.status === 200, 'staff consulta notas de aluno');
+
+const stranger = await call('POST', '/api/auth/login', { body: { email: 'aluno2@escola.com', password: 'student123' } });
+r = await call('GET', `/api/grades/student/${student.id}`, { token: stranger.json?.data?.accessToken });
+ok(r.status === 403, 'REGRESSÃO furo: colega não consulta notas de outro aluno', JSON.stringify(r.json));
+
+const guardianEmail = `resp-e2e-${STAMP}@escola.com`;
+r = await call('POST', '/api/guardians', { token: A, body: {
+  user: { email: guardianEmail, password: 'Guardian123', role: 'GUARDIAN' },
+  person: { name: 'Resp E2E', cpf: validCpf(STAMP + 7) },
+  relationship: 'PAI',
+  studentIds: [student.id],
+} });
+ok(r.status === 201, 'cria responsável vinculado ao aluno (201)', JSON.stringify(r.json));
+const guardianId = r.json?.data?.id;
+
+r = await call('POST', '/api/auth/login', { body: { email: guardianEmail, password: 'Guardian123' } });
+ok(r.status === 200 && r.json?.data?.user?.role === 'GUARDIAN', 'responsável criado faz login');
+const G = r.json?.data?.accessToken;
+
+r = await call('GET', '/api/grades/my-report', { token: G });
+ok(r.status === 200 && r.json?.data?.[0]?.student?.id === student.id, 'responsável vê boletim do aluno vinculado', JSON.stringify(r.json).slice(0, 200));
+
+r = await call('GET', `/api/grades/student/${student.id}`, { token: G });
+ok(r.status === 200, 'responsável consulta notas do vínculo por rota');
+
+r = await call('GET', '/api/students', { token: G });
+ok(r.status === 403, 'responsável não lista alunos (gate padrão)', JSON.stringify(r.json));
+
+r = await call('DELETE', `/api/guardians/${guardianId}`, { token: A });
+ok(r.status === 204, 'exclui responsável');
+
+r = await call('POST', '/api/auth/login', { body: { email: guardianEmail, password: 'Guardian123' } });
+ok(r.status === 401, 'REGRESSÃO órfão: login do responsável excluído não existe mais');
+
+console.log('7) LIMPEZA');
 r = await call('DELETE', `/api/grades/${gradeId}`, { token: A });
 ok(r.status === 204, 'exclui nota');
 

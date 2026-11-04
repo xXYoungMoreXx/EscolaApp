@@ -6,3 +6,5 @@ export { CreateSubjectUseCase, GetAllSubjectsUseCase, GetSubjectByIdUseCase, Upd
 export { CreateClassUseCase, GetAllClassesUseCase, GetClassByIdUseCase, UpdateClassUseCase, DeleteClassUseCase, EnrollStudentUseCase, RemoveStudentFromClassUseCase } from './class.use-case';
 export { CreateGradeUseCase, GetAllGradesUseCase, GetGradesByStudentUseCase, UpdateGradeUseCase, DeleteGradeUseCase } from './grade.use-case';
 export { CreateAttendanceUseCase, BulkCreateAttendanceUseCase, GetAllAttendancesUseCase, GetAttendanceByClassUseCase, DeleteAttendanceUseCase } from './attendance.use-case';
+export { CreateGuardianUseCase, GetAllGuardiansUseCase, DeleteGuardianUseCase } from './guardian.use-case';
+export { GetStudentReportCardUseCase, GetMyReportCardsUseCase } from './report-card.use-case';

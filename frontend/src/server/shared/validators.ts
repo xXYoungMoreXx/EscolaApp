@@ -110,6 +110,13 @@ export const refreshSchema = z.object({
   refreshToken: z.string().min(10, 'Refresh token é obrigatório'),
 });
 
+export const createGuardianSchema = z.object({
+  user: createUserSchema.extend({ role: z.literal('GUARDIAN') }),
+  person: createPersonSchema,
+  relationship: z.enum(['PAI', 'MAE', 'RESPONSAVEL']).optional(),
+  studentIds: z.array(z.string().uuid()).min(1).max(20),
+});
+
 export const createNotificationSchema = z.object({
   userId: z.string().uuid().optional().nullable(),
   targetRole: z.enum(['ADMIN', 'TEACHER', 'STUDENT', 'COORDINATOR']).optional().nullable(),
