@@ -13,46 +13,25 @@ const isAuthEndpoint = (url = '') =>
   url.includes('/api/auth/login') || url.includes('/api/auth/refresh') || url.includes('/api/auth/forgot-password');
 
 export function clearSession() {
-  localStorage.removeItem('token');
-  localStorage.removeItem('refreshToken');
   localStorage.removeItem('user');
 }
 
-/** Troca silenciosa: roda fora da instância `api` para não reentrar no interceptor de request/401. */
-let refreshInFlight: Promise<string | null> | null = null;
+/** Troca silenciosa por cookie: /api/auth/refresh roda fora da instância `api`
+ * para não reentrar no interceptor de request/401. Cookie viaja sozinho. */
+let refreshInFlight: Promise<boolean> | null = null;
 
-async function refreshSession(): Promise<string | null> {
-  const refreshToken = localStorage.getItem('refreshToken');
-  if (!refreshToken) return null;
+async function refreshSession(): Promise<boolean> {
   try {
-    const response = await axios.post(
+    await axios.post(
       `${authBaseUrl}/api/auth/refresh`,
-      { refreshToken },
-      { headers: { 'Content-Type': 'application/json' } },
+      undefined,
+      { timeout: 10000 },
     );
-    const { accessToken, refreshToken: newRefreshToken } = response.data.data;
-    localStorage.setItem('token', accessToken);
-    localStorage.setItem('refreshToken', newRefreshToken);
-    return accessToken;
+    return true;
   } catch {
-    return null;
+    return false;
   }
 }
-
-api.interceptors.request.use(
-  (config) => {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('token');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
 
 api.interceptors.response.use(
   (response) => response,
@@ -64,10 +43,8 @@ api.interceptors.response.use(
         refreshInFlight ??= refreshSession().finally(() => {
           refreshInFlight = null;
         });
-        const token = await refreshInFlight;
-        if (token) {
-          original.headers = original.headers ?? {};
-          (original.headers as Record<string, string>).Authorization = `Bearer ${token}`;
+        const refreshed = await refreshInFlight;
+        if (refreshed) {
           return api(original);
         }
       }

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import axios from 'axios';
 import api, { clearSession, User } from '@/lib/api';
 import toast from 'react-hot-toast';
 
@@ -21,26 +22,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    let canceled = false;
+    // Cache não-sensível para o primeiro paint; verdade de sessão = cookie via /me.
     const storedUser = localStorage.getItem('user');
-
-    if (token && storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch {
-        clearSession();
-      }
+    if (storedUser) {
+      try { setUser(JSON.parse(storedUser)); } catch { localStorage.removeItem('user'); }
     }
-    setIsLoading(false);
+    // Probe cru (sem interceptor): 401 aqui é "sem sessão", não evento de logout global.
+    axios.get('/api/auth/me')
+      .then((me) => {
+        if (canceled) return;
+        setUser(me.data.data);
+        localStorage.setItem('user', JSON.stringify(me.data.data));
+      })
+      .catch(() => {
+        if (canceled) return;
+        localStorage.removeItem('user');
+        setUser(null);
+      })
+      .finally(() => {
+        if (!canceled) setIsLoading(false);
+      });
+    return () => { canceled = true; };
   }, []);
 
   const login = async (email: string, password: string) => {
     try {
       const response = await api.post('/api/auth/login', { email, password });
-      const { user: userData, accessToken, refreshToken } = response.data.data;
+      // Tokens vão para cookies httpOnly via Set-Cookie; aqui só o perfil.
+      const userData = response.data.data.user;
 
-      localStorage.setItem('token', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
       localStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
 
@@ -53,7 +64,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await api.post('/api/auth/logout');
+    } catch {
+      // logout segue local mesmo se a rota falhar
+    }
     clearSession();
     setUser(null);
     router.push('/login');

@@ -2,15 +2,15 @@ import { NextRequest } from 'next/server';
 import { ok, fail } from '@/server/http';
 import { allow, clientKey, rateLimited } from '@/server/rate-limit';
 import { verifyRefreshToken, generateTokens } from '@/server/infrastructure/auth/jwt';
+import { getRefreshTokenCookie, setAuthCookies } from '@/server/infrastructure/auth/session';
 import { PrismaUserRepository } from '@/server/infrastructure/database/prisma/repositories';
-import { refreshSchema } from '@/server/shared/validators';
 import { UnauthorizedError } from '@/server/shared/errors';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * Rotação de tokens. Revogação server-side sem estado:
+ * Rotação de tokens (agora por cookie httpOnly, sem corpo). Revogação server-side sem estado:
  *  - usuário inativo   => refresh recusado;
  *  - senha trocada/zerada (pwd ≠ updatedAt atual) => refresh recusado;
  * access token fica limitado a 15m, então um token roubado morre rápido.
@@ -18,9 +18,10 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     if (!(await allow(clientKey(req, 'refresh'), 30))) return rateLimited();
-    const body = refreshSchema.parse(await req.json());
+    const rt = getRefreshTokenCookie(req);
+    if (!rt) throw new UnauthorizedError('Refresh token não fornecido');
 
-    const decoded = verifyRefreshToken(body.refreshToken);
+    const decoded = verifyRefreshToken(rt);
 
     const user = await new PrismaUserRepository().findById(decoded.userId);
     if (!user || !user.active) {
@@ -39,7 +40,11 @@ export async function POST(req: NextRequest) {
       pwd: currentPwd,
     });
 
-    return ok(tokens);
+    const res = ok({
+      user: { id: user.id, email: user.email, role: user.role, mustChangePassword: user.mustChangePassword },
+    });
+    setAuthCookies(res, tokens);
+    return res;
   } catch (error) {
     return fail(error);
   }

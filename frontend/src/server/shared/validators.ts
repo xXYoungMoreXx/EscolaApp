@@ -106,10 +106,6 @@ export const changePasswordSchema = z.object({
   newPassword: passwordSchema,
 });
 
-export const refreshSchema = z.object({
-  refreshToken: z.string().min(10, 'Refresh token é obrigatório'),
-});
-
 export const createGuardianSchema = z.object({
   user: createUserSchema.extend({ role: z.literal('GUARDIAN') }),
   person: createPersonSchema,

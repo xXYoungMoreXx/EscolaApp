@@ -15,21 +15,38 @@ function ok(cond, label, extra) {
   }
 }
 
-async function call(method, path, { body, token } = {}) {
+const STAMP = Date.now();
+const CODE = `E2E-${STAMP}`;
+
+// Sessões por cookie: login Set-Cookie → jar → Cookie nas chamadas seguintes.
+function newJar() { return { m: new Map() }; }
+function harvest(res, jar) {
+  for (const c of res.headers.getSetCookie?.() ?? []) {
+    const [pair] = c.split(';');
+    const eq = pair.indexOf('=');
+    if (eq <= 0) continue;
+    const name = pair.slice(0, eq).trim();
+    const value = pair.slice(eq + 1);
+    if (value === '') jar.m.delete(name); else jar.m.set(name, value);
+  }
+}
+function cookieHeader(jar) { return [...jar.m].map(([k, v]) => `${k}=${v}`).join('; '); }
+function rawJar(name, value) { const j = newJar(); j.m.set(name, value); return j; }
+
+async function call(method, path, { body, jar, rawCookie } = {}) {
   const headers = { 'Content-Type': 'application/json' };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const cookieValue = rawCookie ?? (jar ? cookieHeader(jar) : null);
+  if (cookieValue) headers.Cookie = cookieValue;
   const res = await fetch(BASE + path, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
   });
+  if (jar) harvest(res, jar);
   let json = null;
   try { json = await res.json(); } catch { /* no-json (204 etc.) */ }
   return { status: res.status, json };
 }
-
-const STAMP = Date.now();
-const CODE = `E2E-${STAMP}`;
 
 function validCpf(seed) {
   const base = String(seed % 1000000000).padStart(9, '0');
@@ -45,119 +62,122 @@ function validCpf(seed) {
   return `${base.slice(0, 3)}.${base.slice(3, 6)}.${base.slice(6)}-${d1}${d2}`;
 }
 
-const adminRes = await call('POST', '/api/auth/login', { body: { email: 'admin@escola.com', password: 'admin123' } });
+const JA = newJar();
+const adminRes = await call('POST', '/api/auth/login', { body: { email: 'admin@escola.com', password: 'admin123' }, jar: JA });
 ok(adminRes.status === 200, 'admin autentica');
-const A = adminRes.json?.data?.accessToken;
+ok(adminRes.json?.data?.accessToken === undefined, 'login não entrega token no corpo (cookie httpOnly)', JSON.stringify(adminRes.json));
 
-let sr = await call('GET', '/api/students?limit=100', { token: A });
+let sr = await call('GET', '/api/students?limit=100', { jar: JA });
 const student = sr.json?.data?.find?.((s) => s.user?.email === 'aluno1@escola.com');
 ok(!!student && !!student.userId, 'aluno do seed localizado pelo email (com userId)');
 
 console.log('1) MATÉRIA + TURMA');
-let r = await call('POST', '/api/subjects', { token: A, body: { name: `Disciplina E2E ${STAMP}`, code: CODE, workload: 40 } });
+let r = await call('POST', '/api/subjects', { jar: JA, body: { name: `Disciplina E2E ${STAMP}`, code: CODE, workload: 40 } });
 ok(r.status === 201, 'cria matéria', JSON.stringify(r.json));
 const subjectId = r.json?.data?.id;
 
-r = await call('GET', '/api/classes?limit=100', { token: A });
+r = await call('GET', '/api/classes?limit=100', { jar: JA });
 const seededClass = r.json?.data?.[0];
 ok(!!seededClass && !!seededClass.subject, 'lista turmas paginada com matéria', JSON.stringify(r.json)?.slice(0, 120));
 
-r = await call('POST', '/api/classes', { token: A, body: { name: `Turma E2E ${STAMP}`, year: 2026, shift: 'morning', teacherId: seededClass.teacherId, subjectId } });
+r = await call('POST', '/api/classes', { jar: JA, body: { name: `Turma E2E ${STAMP}`, year: 2026, shift: 'morning', teacherId: seededClass.teacherId, subjectId } });
 ok(r.status === 201, 'cria turma amarrada a matéria/professor', JSON.stringify(r.json));
 const classId = r.json?.data?.id;
 
-r = await call('GET', `/api/classes/${classId}`, { token: A });
+r = await call('GET', `/api/classes/${classId}`, { jar: JA });
 ok(r.status === 200 && r.json?.data?.id === classId, 'detalhe da turma retorna');
 
 console.log('2) PROFESSOR');
+const JT = newJar();
 const email = `prof-core-${STAMP}@escola.com`;
-r = await call('POST', '/api/teachers', { token: A, body: { user: { email, password: 'Professor1', role: 'TEACHER' }, person: { name: 'Prof E2E', cpf: validCpf(STAMP) }, salary: 1000 } });
+r = await call('POST', '/api/teachers', { jar: JA, body: { user: { email, password: 'Professor1', role: 'TEACHER' }, person: { name: 'Prof E2E', cpf: validCpf(STAMP) }, salary: 1000 } });
 ok(r.status === 201, 'cria professor (user+person+teacher transacional)', JSON.stringify(r.json));
 const teacherId = r.json?.data?.id;
 
-r = await call('GET', `/api/teachers/${teacherId}`, { token: A });
+r = await call('GET', `/api/teachers/${teacherId}`, { jar: JA });
 ok(r.status === 200 && r.json?.data?.user?.email === email, 'detalhe do professor carrega user');
 
-r = await call('PUT', `/api/teachers/${teacherId}`, { token: A, body: { salary: 1200 } });
+r = await call('PUT', `/api/teachers/${teacherId}`, { jar: JA, body: { salary: 1200 } });
 ok(r.status === 200 && r.json?.data?.salary === 1200, 'atualiza professor (PUT)', JSON.stringify(r.json));
 
-r = await call('POST', '/api/auth/login', { body: { email, password: 'Professor1' } });
-ok(r.status === 200 && r.json?.data?.accessToken, 'professor criado faz login');
-const T = r.json?.data?.accessToken;
+r = await call('POST', '/api/auth/login', { body: { email, password: 'Professor1' }, jar: JT });
+ok(r.status === 200 && r.json?.data?.accessToken === undefined && !!r.json?.data?.user, 'professor criado faz login (user no corpo, cookie httpOnly)');
+const T = JT;
 
-r = await call('GET', '/api/auth/users?limit=1', { token: T });
+r = await call('GET', '/api/auth/users?limit=1', { jar: JT });
 ok(r.status === 403, 'professor não gerencia usuários (403)', JSON.stringify(r.json));
 
-r = await call('POST', '/api/grades', { token: T, body: { studentId: student.id, classId, subjectId, value: 9, period: '2trimestre' } });
+r = await call('POST', '/api/grades', { jar: JT, body: { studentId: student.id, classId, subjectId, value: 9, period: '2trimestre' } });
 ok(r.status === 201, 'professor lança nota sem informar teacherId (resolvido por cargo)', JSON.stringify(r.json));
 
-r = await call('POST', '/api/teachers', { token: A, body: { user: { email, password: 'Professor1', role: 'TEACHER' }, person: { name: 'Duplicado', cpf: validCpf(STAMP + 1) } } });
+r = await call('POST', '/api/teachers', { jar: JA, body: { user: { email, password: 'Professor1', role: 'TEACHER' }, person: { name: 'Duplicado', cpf: validCpf(STAMP + 1) } } });
 ok(r.status === 409, 'email de professor duplicado recusado (409)');
 
-r = await call('DELETE', `/api/teachers/${teacherId}`, { token: A });
+r = await call('DELETE', `/api/teachers/${teacherId}`, { jar: JA });
 ok(r.status === 204, 'exclui professor');
 
 r = await call('POST', '/api/auth/login', { body: { email, password: 'Professor1' } });
 ok(r.status === 401, 'REGRESSÃO órfão: login do professor excluído não existe mais', JSON.stringify(r.json));
 
 console.log('3) MATRÍCULA + NOTAS + PRESENÇA' );
-r = await call('POST', `/api/classes/${classId}/enroll`, { token: A, body: { studentId: student.id } });
+r = await call('POST', `/api/classes/${classId}/enroll`, { jar: JA, body: { studentId: student.id } });
 ok(r.status === 201, 'matricula aluno na turma (/enroll)', JSON.stringify(r.json));
 
-r = await call('POST', '/api/grades', { token: A, body: { studentId: student.id, classId, subjectId, teacherId: seededClass.teacherId, value: 8.5, period: '1trimestre' } });
+r = await call('POST', '/api/grades', { jar: JA, body: { studentId: student.id, classId, subjectId, teacherId: seededClass.teacherId, value: 8.5, period: '1trimestre' } });
 ok(r.status === 201, 'admin lança nota com teacherId explícito', JSON.stringify(r.json));
 const gradeId = r.json?.data?.id;
 
-r = await call('POST', '/api/grades', { token: A, body: { studentId: student.id, classId, subjectId, teacherId: seededClass.teacherId, value: 7, period: '1trimestre' } });
+r = await call('POST', '/api/grades', { jar: JA, body: { studentId: student.id, classId, subjectId, teacherId: seededClass.teacherId, value: 7, period: '1trimestre' } });
 ok(r.status === 409, 'REGRESSÃO: segunda nota no mesmo aluno/turma/matéria/período é recusada (409)', JSON.stringify(r.json));
 
-r = await call('POST', '/api/grades', { token: A, body: { studentId: student.id, classId, subjectId, teacherId: seededClass.teacherId, value: 11, period: '1trimestre' } });
+r = await call('POST', '/api/grades', { jar: JA, body: { studentId: student.id, classId, subjectId, teacherId: seededClass.teacherId, value: 11, period: '1trimestre' } });
 ok(r.status === 400 || r.status === 422, 'REGRESSÃO 500: nota fora da faixa devolve erro de validação (4xx)', JSON.stringify(r.json));
 
-r = await call('GET', `/api/grades/student/${student.id}`, { token: A });
+r = await call('GET', `/api/grades/student/${student.id}`, { jar: JA });
 ok(r.status === 200, 'notas do aluno consultáveis');
 
-r = await call('PUT', `/api/grades/${gradeId}`, { token: A, body: { value: 9.2 } });
+r = await call('PUT', `/api/grades/${gradeId}`, { jar: JA, body: { value: 9.2 } });
 ok(r.status === 200 && r.json?.data?.value === 9.2, 'atualiza nota (PUT)', JSON.stringify(r.json));
 
-r = await call('POST', '/api/attendance/bulk', { token: A, body: { records: [
+r = await call('POST', '/api/attendance/bulk', { jar: JA, body: { records: [
   { studentId: student.id, classId, date: new Date().toISOString(), status: 'PRESENT' },
   { studentId: student.id, classId, date: new Date(Date.now() - 86400000).toISOString(), status: 'ABSENT' },
 ] } });
 ok(r.status === 201, 'presença em lote (datas ISO)', JSON.stringify(r.json));
 
 // Re-chamada no mesmo dia: upsert (atualiza, não duplica nem explode)
-r = await call('POST', '/api/attendance/bulk', { token: A, body: { records: [
+r = await call('POST', '/api/attendance/bulk', { jar: JA, body: { records: [
   { studentId: student.id, classId, date: new Date().toISOString(), status: 'PRESENT' },
 ] } });
 ok(r.status === 201, 'REGRESSÃO: re-chamada no mesmo dia atualiza em vez de 500', JSON.stringify(r.json));
 
-r = await call('GET', `/api/attendance/class/${classId}?date=${new Date().toISOString().slice(0, 10)}`, { token: A });
+r = await call('GET', `/api/attendance/class/${classId}?date=${new Date().toISOString().slice(0, 10)}`, { jar: JA });
 const todayRecords = (r.json?.data ?? []).filter((a) => a.studentId === student.id);
 ok(todayRecords.length === 1 && todayRecords[0].status === 'PRESENT', 'REGRESSÃO: uma marca única por aluno/dia (status atualizado)', JSON.stringify(r.json));
 
-r = await call('GET', `/api/attendance/class/${classId}?date=${new Date().toISOString().slice(0, 10)}`, { token: A });
+r = await call('GET', `/api/attendance/class/${classId}?date=${new Date().toISOString().slice(0, 10)}`, { jar: JA });
 ok(r.status === 200, 'chamada da turma por data');
 
 console.log('4) AVISOS (dono: aluno)');
-r = await call('POST', '/api/notifications', { token: A, body: { userId: student.userId, title: `Aviso E2E ${STAMP}`, message: 'teste', type: 'info' } });
+r = await call('POST', '/api/notifications', { jar: JA, body: { userId: student.userId, title: `Aviso E2E ${STAMP}`, message: 'teste', type: 'info' } });
 ok(r.status === 201, 'admin cria aviso para o aluno', JSON.stringify(r.json));
 const notifId = r.json?.data?.id;
 
-const studentRes = await call('POST', '/api/auth/login', { body: { email: student.user?.email ?? 'aluno1@escola.com', password: 'student123' } });
+const JS = newJar();
+const studentRes = await call('POST', '/api/auth/login', { body: { email: student.user?.email ?? 'aluno1@escola.com', password: 'student123' }, jar: JS });
 ok(studentRes.status === 200, 'aluno do seed autentica', JSON.stringify(studentRes.json));
-const S = studentRes.json?.data?.accessToken;
+const S = JS;
 
-r = await call('PATCH', `/api/notifications/${notifId}/read`, { token: S });
+r = await call('PATCH', `/api/notifications/${notifId}/read`, { jar: JS });
 ok(r.status === 200, 'aluno marca o próprio aviso como lido (PATCH)', JSON.stringify(r.json));
 
-r = await call('PATCH', `/api/notifications/${notifId}/read`, { token: A });
+r = await call('PATCH', `/api/notifications/${notifId}/read`, { jar: JA });
 ok(r.status === 403, 'admin não marca aviso de outro usuário (escopo de dono, 403)', JSON.stringify(r.json));
 
-r = await call('POST', '/api/notifications/read-all', { token: S });
+r = await call('POST', '/api/notifications/read-all', { jar: JS });
 ok([200, 201, 204].includes(r.status), 'aluno marca todos como lidos');
 
-r = await call('DELETE', `/api/notifications/${notifId}`, { token: S });
+r = await call('DELETE', `/api/notifications/${notifId}`, { jar: JS });
 ok(r.status === 204, 'aluno exclui o próprio aviso', JSON.stringify(r.json));
 
 console.log('5) PERMISSÕES E SAÚDE');
@@ -168,24 +188,25 @@ r = await call('GET', '/api/students');
 ok(r.status === 401, 'endpoint sem token é 401');
 
 console.log('6) BOLETIM + RESPONSÁVEL');
-r = await call('GET', '/api/grades/my-report', { token: S });
+r = await call('GET', '/api/grades/my-report', { jar: JS });
 const e2eItem = r.json?.data?.[0]?.items?.find?.((i) => i.subject.includes('E2E'));
 ok(r.status === 200 && r.json?.data?.length === 1, 'aluno vê o próprio boletim', JSON.stringify(r.json).slice(0, 200));
 ok(e2eItem && e2eItem.average === 9.2, 'boletim reflete média da matéria E2E (9.2)', JSON.stringify(e2eItem));
 ok(e2eItem && e2eItem.frequency === 50, 'boletim reflete frequência do aluno (1/2 → 50%)', JSON.stringify(e2eItem));
 
-r = await call('GET', `/api/grades/student/${student.id}`, { token: S });
+r = await call('GET', `/api/grades/student/${student.id}`, { jar: JS });
 ok(r.status === 200, 'aluno consulta as próprias notas direto por rota');
 
-r = await call('GET', `/api/grades/student/${student.id}`, { token: A });
+r = await call('GET', `/api/grades/student/${student.id}`, { jar: JA });
 ok(r.status === 200, 'staff consulta notas de aluno');
 
-const stranger = await call('POST', '/api/auth/login', { body: { email: 'aluno2@escola.com', password: 'student123' } });
-r = await call('GET', `/api/grades/student/${student.id}`, { token: stranger.json?.data?.accessToken });
+const JSTRANGER = newJar();
+const stranger = await call('POST', '/api/auth/login', { body: { email: 'aluno2@escola.com', password: 'student123' }, jar: JSTRANGER });
+r = await call('GET', `/api/grades/student/${student.id}`, { jar: JSTRANGER });
 ok(r.status === 403, 'REGRESSÃO furo: colega não consulta notas de outro aluno', JSON.stringify(r.json));
 
 const guardianEmail = `resp-e2e-${STAMP}@escola.com`;
-r = await call('POST', '/api/guardians', { token: A, body: {
+r = await call('POST', '/api/guardians', { jar: JA, body: {
   user: { email: guardianEmail, password: 'Guardian123', role: 'GUARDIAN' },
   person: { name: 'Resp E2E', cpf: validCpf(STAMP + 7) },
   relationship: 'PAI',
@@ -194,33 +215,34 @@ r = await call('POST', '/api/guardians', { token: A, body: {
 ok(r.status === 201, 'cria responsável vinculado ao aluno (201)', JSON.stringify(r.json));
 const guardianId = r.json?.data?.id;
 
-r = await call('POST', '/api/auth/login', { body: { email: guardianEmail, password: 'Guardian123' } });
+const JG = newJar();
+r = await call('POST', '/api/auth/login', { body: { email: guardianEmail, password: 'Guardian123' }, jar: JG });
 ok(r.status === 200 && r.json?.data?.user?.role === 'GUARDIAN', 'responsável criado faz login');
-const G = r.json?.data?.accessToken;
+const G = JG;
 
-r = await call('GET', '/api/grades/my-report', { token: G });
+r = await call('GET', '/api/grades/my-report', { jar: JG });
 ok(r.status === 200 && r.json?.data?.[0]?.student?.id === student.id, 'responsável vê boletim do aluno vinculado', JSON.stringify(r.json).slice(0, 200));
 
-r = await call('GET', `/api/grades/student/${student.id}`, { token: G });
+r = await call('GET', `/api/grades/student/${student.id}`, { jar: JG });
 ok(r.status === 200, 'responsável consulta notas do vínculo por rota');
 
-r = await call('GET', '/api/students', { token: G });
+r = await call('GET', '/api/students', { jar: JG });
 ok(r.status === 403, 'responsável não lista alunos (gate padrão)', JSON.stringify(r.json));
 
-r = await call('DELETE', `/api/guardians/${guardianId}`, { token: A });
+r = await call('DELETE', `/api/guardians/${guardianId}`, { jar: JA });
 ok(r.status === 204, 'exclui responsável');
 
 r = await call('POST', '/api/auth/login', { body: { email: guardianEmail, password: 'Guardian123' } });
 ok(r.status === 401, 'REGRESSÃO órfão: login do responsável excluído não existe mais');
 
 console.log('7) LIMPEZA');
-r = await call('DELETE', `/api/grades/${gradeId}`, { token: A });
+r = await call('DELETE', `/api/grades/${gradeId}`, { jar: JA });
 ok(r.status === 204, 'exclui nota');
 
-r = await call('DELETE', `/api/classes/${classId}`, { token: A });
+r = await call('DELETE', `/api/classes/${classId}`, { jar: JA });
 ok(r.status === 204, 'exclui turma (matrícula/preença morrem em cascata)');
 
-r = await call('DELETE', `/api/subjects/${subjectId}`, { token: A });
+r = await call('DELETE', `/api/subjects/${subjectId}`, { jar: JA });
 ok(r.status === 204, 'exclui matéria');
 
 console.log('');

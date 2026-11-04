@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken, type TokenPayload } from './infrastructure/auth/jwt';
+import { getAccessTokenCookie } from './infrastructure/auth/session';
 import { AppError, UnauthorizedError, ForbiddenError } from './shared/errors';
 import { paginationSchema } from './shared/validators';
 import { logger } from './shared/logger';
@@ -60,10 +61,10 @@ export function fail(error: unknown) {
 }
 
 export function getAuth(req: NextRequest): TokenPayload | null {
-  const header = req.headers.get('authorization');
-  if (!header || !header.startsWith('Bearer ')) return null;
+  const token = getAccessTokenCookie(req);
+  if (!token) return null;
   try {
-    return verifyToken(header.slice('Bearer '.length));
+    return verifyToken(token);
   } catch {
     return null;
   }

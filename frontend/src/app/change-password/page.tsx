@@ -23,9 +23,8 @@ export default function ChangePasswordPage() {
         currentPassword: form.currentPassword,
         newPassword: form.newPassword,
       });
-      const { user: updatedUser, accessToken, refreshToken } = response.data.data;
-      localStorage.setItem('token', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
+      // Re-emissão vai para cookies httpOnly; aqui só o perfil atualizado.
+      const { user: updatedUser } = response.data.data;
       localStorage.setItem('user', JSON.stringify(updatedUser));
       toast.success('Senha alterada com sucesso!');
       window.location.href = '/dashboard';
