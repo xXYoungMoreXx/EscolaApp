@@ -1,5 +1,5 @@
 import { StudentRepository, UserRepository } from '../../domain/repositories';
-import { CreateUserUseCase } from './auth.use-case';
+import { hashPassword } from '../../infrastructure/auth/jwt';
 import { NotFoundError, ConflictError } from '../../shared/errors';
 import { logger } from '../../shared/logger';
 
@@ -13,24 +13,44 @@ export class CreateStudentUseCase {
     user: { email: string; password: string; role?: string };
     person: { name: string; cpf: string; [key: string]: any };
   }) {
+    const { getPrisma } = await import('../../infrastructure/database/prisma/client');
+    const prisma = getPrisma();
+
+    // Pré-checas + transação: sem isso, conflito de constraint (CPF/registro únicos)
+    // depois de User.create deixava o usuário órfão ativo no banco (achado no E2E).
+    await this.assertFree(prisma, data.user.email, data.person.cpf);
+
     const registration = await this.nextRegistration();
 
-    const createUser = new CreateUserUseCase(this.userRepository);
-    const user = await createUser.execute({
-      ...data.user,
-      role: data.user.role ?? 'STUDENT',
-    });
-
-    const person = await this.createPerson(data.person);
-    const student = await this.studentRepository.create({
-      userId: user.id,
-      personId: person.id,
-      registration,
+    const { user, person, student } = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email: data.user.email,
+          password: await hashPassword(data.user.password),
+          role: data.user.role ?? 'STUDENT',
+        },
+      });
+      const person = await tx.person.create({ data: data.person });
+      const student = await tx.student.create({
+        data: { userId: user.id, personId: person.id, registration },
+      });
+      return { user, person, student };
     });
 
     logger.info({ studentId: student.id, registration }, 'Student created');
 
     return { ...student, user, person };
+  }
+
+  private async assertFree(
+    prisma: Awaited<ReturnType<typeof import('../../infrastructure/database/prisma/client').getPrisma>>,
+    email: string,
+    cpf: string,
+  ) {
+    const emailTaken = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+    if (emailTaken) throw new ConflictError('Email já cadastrado');
+    const cpfTaken = await prisma.person.findUnique({ where: { cpf }, select: { id: true } });
+    if (cpfTaken) throw new ConflictError('CPF já cadastrado');
   }
 
   private async nextRegistration(): Promise<string> {
@@ -45,12 +65,6 @@ export class CreateStudentUseCase {
     });
     const seq = last ? parseInt(last.registration.slice(prefix.length), 10) + 1 : 1;
     return `${prefix}${String(seq).padStart(4, '0')}`;
-  }
-
-  private async createPerson(data: any) {
-    const { getPrisma } = await import('../../infrastructure/database/prisma/client');
-    const prisma = getPrisma();
-    return prisma.person.create({ data });
   }
 }
 

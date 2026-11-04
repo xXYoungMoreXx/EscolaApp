@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const user = requireAuth(req);
+    const user = requireAuth(req, { allowPendingPasswordChange: true });
     const body = changePasswordSchema.parse(await req.json());
     const useCase = new ChangePasswordUseCase(new PrismaUserRepository());
     const result = await useCase.execute(user.userId, body.currentPassword, body.newPassword);

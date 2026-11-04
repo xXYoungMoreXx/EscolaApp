@@ -25,6 +25,8 @@ export class LoginUseCase {
       userId: user.id,
       email: user.email,
       role: user.role,
+      mustChangePassword: user.mustChangePassword,
+      pwd: user.updatedAt.toISOString(),
     });
 
     logger.info({ userId: user.id, role: user.role }, 'User logged in');
@@ -51,10 +53,26 @@ export class ChangePasswordUseCase {
     }
 
     const hashedPassword = await hashPassword(newPassword);
-    await this.userRepository.update(userId, { password: hashedPassword, mustChangePassword: false });
+    const updated = await this.userRepository.update(userId, {
+      password: hashedPassword,
+      mustChangePassword: false,
+    });
+
+    // Re-emite os tokens: o novo access token já sai com mustChangePassword=false
+    // e o novo pwd marca a versão da senha (invalida refresh tokens antigos).
+    const tokens = generateTokens({
+      userId: updated.id,
+      email: updated.email,
+      role: updated.role,
+      mustChangePassword: false,
+      pwd: updated.updatedAt.toISOString(),
+    });
 
     logger.info({ userId }, 'Password changed');
-    return { success: true };
+    return {
+      user: { id: updated.id, email: updated.email, role: updated.role, mustChangePassword: false },
+      ...tokens,
+    };
   }
 }
 

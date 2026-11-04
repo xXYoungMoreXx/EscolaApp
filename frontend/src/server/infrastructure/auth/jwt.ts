@@ -6,7 +6,7 @@ import { logger } from '../../shared/logger';
 function getSecret(): string {
   const secret = process.env.JWT_SECRET;
   if (!secret || secret === 'default-secret') {
-    if (process.env.NODE_ENV === 'production' && process.env.VERCEL) {
+    if (process.env.NODE_ENV === 'production') {
       throw new Error('JWT_SECRET não configurado — defina a variável de ambiente JWT_SECRET');
     }
     return 'dev-only-secret';
@@ -14,12 +14,20 @@ function getSecret(): string {
   return secret;
 }
 
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1h';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
 
 export interface TokenPayload {
   userId: string;
   email: string;
   role: string;
+  mustChangePassword?: boolean;
+  /** Marcador de versão da senha (updatedAt do usuário) — permite invalidar tokens após troca/reset. */
+  pwd?: string;
+}
+
+export interface RefreshTokenClaims {
+  userId: string;
+  pwd?: string;
 }
 
 export interface TokenPair {
@@ -38,7 +46,8 @@ export async function comparePasswords(password: string, hash: string): Promise<
 
 export function generateTokens(payload: TokenPayload): TokenPair {
   const accessToken = jwt.sign(payload, getSecret(), { expiresIn: JWT_EXPIRES_IN } as any);
-  const refreshToken = jwt.sign({ userId: payload.userId }, getSecret(), { expiresIn: '7d' } as any);
+  const refreshClaims: RefreshTokenClaims = { userId: payload.userId, pwd: payload.pwd };
+  const refreshToken = jwt.sign(refreshClaims, getSecret(), { expiresIn: '7d' } as any);
   return { accessToken, refreshToken };
 }
 
@@ -52,7 +61,7 @@ export function verifyToken(token: string): TokenPayload {
   }
 }
 
-export function verifyRefreshToken(token: string): { userId: string } {
+export function verifyRefreshToken(token: string): RefreshTokenClaims {
   try {
     const decoded = jwt.verify(token, getSecret()) as { userId: string };
     return decoded;

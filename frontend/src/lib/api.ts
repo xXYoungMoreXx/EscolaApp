@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || '',
@@ -7,6 +7,37 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+const authBaseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+const isAuthEndpoint = (url = '') =>
+  url.includes('/api/auth/login') || url.includes('/api/auth/refresh') || url.includes('/api/auth/forgot-password');
+
+export function clearSession() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('user');
+}
+
+/** Troca silenciosa: roda fora da instância `api` para não reentrar no interceptor de request/401. */
+let refreshInFlight: Promise<string | null> | null = null;
+
+async function refreshSession(): Promise<string | null> {
+  const refreshToken = localStorage.getItem('refreshToken');
+  if (!refreshToken) return null;
+  try {
+    const response = await axios.post(
+      `${authBaseUrl}/api/auth/refresh`,
+      { refreshToken },
+      { headers: { 'Content-Type': 'application/json' } },
+    );
+    const { accessToken, refreshToken: newRefreshToken } = response.data.data;
+    localStorage.setItem('token', accessToken);
+    localStorage.setItem('refreshToken', newRefreshToken);
+    return accessToken;
+  } catch {
+    return null;
+  }
+}
 
 api.interceptors.request.use(
   (config) => {
@@ -25,13 +56,23 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
+  async (error: AxiosError) => {
+    if (error.response?.status === 401 && typeof window !== 'undefined') {
+      const original = error.config as (typeof error.config & { _retry?: boolean }) | undefined;
+      if (original && !isAuthEndpoint(original.url) && !original._retry) {
+        original._retry = true;
+        refreshInFlight ??= refreshSession().finally(() => {
+          refreshInFlight = null;
+        });
+        const token = await refreshInFlight;
+        if (token) {
+          original.headers = original.headers ?? {};
+          (original.headers as Record<string, string>).Authorization = `Bearer ${token}`;
+          return api(original);
+        }
       }
+      clearSession();
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   }

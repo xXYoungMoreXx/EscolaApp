@@ -69,9 +69,14 @@ export function getAuth(req: NextRequest): TokenPayload | null {
   }
 }
 
-export function requireAuth(req: NextRequest): TokenPayload {
+export function requireAuth(req: NextRequest, opts: { allowPendingPasswordChange?: boolean } = {}): TokenPayload {
   const user = getAuth(req);
   if (!user) throw new UnauthorizedError('Token de acesso não fornecido');
+  // mustChangePassword é obrigação do servidor, não do client: usuário com troca
+  // pendente só acessa os endpoints que optam por permitir (complementar senha / perfil próprio).
+  if (user.mustChangePassword && !opts.allowPendingPasswordChange) {
+    throw new ForbiddenError('Troca de senha pendente — defina uma nova senha para continuar');
+  }
   return user;
 }
 

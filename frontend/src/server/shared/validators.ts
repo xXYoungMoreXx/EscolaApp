@@ -101,6 +101,10 @@ export const changePasswordSchema = z.object({
   newPassword: passwordSchema,
 });
 
+export const refreshSchema = z.object({
+  refreshToken: z.string().min(10, 'Refresh token é obrigatório'),
+});
+
 export const createNotificationSchema = z.object({
   userId: z.string().uuid().optional().nullable(),
   targetRole: z.enum(['ADMIN', 'TEACHER', 'STUDENT', 'COORDINATOR']).optional().nullable(),

@@ -1,6 +1,6 @@
 import { TeacherRepository, UserRepository } from '../../domain/repositories';
-import { CreateUserUseCase } from './auth.use-case';
-import { NotFoundError } from '../../shared/errors';
+import { hashPassword } from '../../infrastructure/auth/jwt';
+import { NotFoundError, ConflictError } from '../../shared/errors';
 import { logger } from '../../shared/logger';
 
 export class CreateTeacherUseCase {
@@ -15,28 +15,37 @@ export class CreateTeacherUseCase {
     admission?: string;
     salary?: number;
   }) {
-    const createUser = new CreateUserUseCase(this.userRepository);
-    const user = await createUser.execute({
-      ...data.user,
-      role: 'TEACHER',
-    });
+    const { getPrisma } = await import('../../infrastructure/database/prisma/client');
+    const prisma = getPrisma();
 
-    const person = await this.createPerson(data.person);
-    const teacher = await this.teacherRepository.create({
-      userId: user.id,
-      personId: person.id,
-      admission: data.admission,
-      salary: data.salary,
+    // Pré-checas + transação (mesmo padrão de CreateStudentUseCase — evita usuário órfão).
+    const emailTaken = await prisma.user.findUnique({ where: { email: data.user.email }, select: { id: true } });
+    if (emailTaken) throw new ConflictError('Email já cadastrado');
+    const cpfTaken = await prisma.person.findUnique({ where: { cpf: data.person.cpf }, select: { id: true } });
+    if (cpfTaken) throw new ConflictError('CPF já cadastrado');
+
+    const { user, person, teacher } = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email: data.user.email,
+          password: await hashPassword(data.user.password),
+          role: 'TEACHER',
+        },
+      });
+      const person = await tx.person.create({ data: data.person });
+      const teacher = await tx.teacher.create({
+        data: {
+          userId: user.id,
+          personId: person.id,
+          admission: data.admission,
+          salary: data.salary,
+        },
+      });
+      return { user, person, teacher };
     });
 
     logger.info({ teacherId: teacher.id }, 'Teacher created');
     return { ...teacher, user, person };
-  }
-
-  private async createPerson(data: any) {
-    const { getPrisma } = await import('../../infrastructure/database/prisma/client');
-    const prisma = getPrisma();
-    return prisma.person.create({ data });
   }
 }
 

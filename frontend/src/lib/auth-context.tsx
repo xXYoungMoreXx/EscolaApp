@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import api, { User } from '@/lib/api';
+import api, { clearSession, User } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 interface AuthContextType {
@@ -28,8 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         setUser(JSON.parse(storedUser));
       } catch {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        clearSession();
       }
     }
     setIsLoading(false);
@@ -38,9 +37,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     try {
       const response = await api.post('/api/auth/login', { email, password });
-      const { user: userData, accessToken } = response.data.data;
+      const { user: userData, accessToken, refreshToken } = response.data.data;
 
       localStorage.setItem('token', accessToken);
+      localStorage.setItem('refreshToken', refreshToken);
       localStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
 
@@ -54,8 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    clearSession();
     setUser(null);
     router.push('/login');
     toast.success('Logout realizado com sucesso!');

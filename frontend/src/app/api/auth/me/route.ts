@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
-    const user = requireAuth(req);
+    const user = requireAuth(req, { allowPendingPasswordChange: true });
     return ok({ user });
   } catch (error) {
     return fail(error);

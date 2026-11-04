@@ -19,17 +19,14 @@ export default function ChangePasswordPage() {
     }
     setLoading(true);
     try {
-      await api.post('/api/auth/change-password', {
+      const response = await api.post('/api/auth/change-password', {
         currentPassword: form.currentPassword,
         newPassword: form.newPassword,
       });
-      const stored = localStorage.getItem('user');
-      if (stored) {
-        localStorage.setItem(
-          'user',
-          JSON.stringify({ ...JSON.parse(stored), mustChangePassword: false }),
-        );
-      }
+      const { user: updatedUser, accessToken, refreshToken } = response.data.data;
+      localStorage.setItem('token', accessToken);
+      localStorage.setItem('refreshToken', refreshToken);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
       toast.success('Senha alterada com sucesso!');
       window.location.href = '/dashboard';
     } catch (error: any) {
