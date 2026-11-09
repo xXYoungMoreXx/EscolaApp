@@ -235,12 +235,50 @@ ok(r.status === 204, 'exclui responsável');
 r = await call('POST', '/api/auth/login', { body: { email: guardianEmail, password: 'Guardian123' } });
 ok(r.status === 401, 'REGRESSÃO órfão: login do responsável excluído não existe mais');
 
-console.log('7) LIMPEZA');
+console.log('7) HORÁRIO (grade semanal)');
+r = await call('GET', `/api/timetable?classId=${classId}`, { jar: JA });
+ok(r.status === 200 && r.json?.data?.length === 0, 'grade da turma nova está vazia', JSON.stringify(r.json));
+
+r = await call('POST', '/api/timetable', { jar: JA, body: { classId, dayOfWeek: 1, startTime: '08:00', endTime: '08:50', room: '101' } });
+ok(r.status === 201 && r.json?.data?.dayOfWeek === 1 && r.json?.data?.class?.name, 'cria slot de horário (com turma incluída)', JSON.stringify(r.json));
+const slotId = r.json?.data?.id;
+
+r = await call('POST', '/api/timetable', { jar: JA, body: { classId, dayOfWeek: 1, startTime: '08:30', endTime: '09:20' } });
+ok(r.status === 409, 'REGRESSÃO: sobreposição de horário no mesmo dia é recusada (409)', JSON.stringify(r.json));
+
+r = await call('POST', '/api/timetable', { jar: JS, body: { classId, dayOfWeek: 3, startTime: '10:00', endTime: '10:50' } });
+ok(r.status === 403, 'student não escreve no horário (403)', JSON.stringify(r.json));
+
+r = await call('GET', '/api/timetable', { jar: JA });
+ok(r.status === 400 || r.status === 422, 'staff sem classId recebe validação (4xx)', r.status);
+
+r = await call('GET', `/api/timetable?classId=${classId}`, { jar: JS });
+ok(r.status === 200 && r.json?.data?.length === 1, 'aluno matriculado lê a grade da turma (classId é o dele)', JSON.stringify(r.json)?.slice(0, 150));
+
+r = await call('GET', '/api/timetable', { jar: JS });
+ok(r.status === 200 && (r.json?.data ?? []).some((s) => s.id === slotId), 'grade consolidada do aluno inclui o slot', JSON.stringify(r.json)?.slice(0, 150));
+
+r = await call('GET', `/api/timetable?classId=${classId}`, { jar: JSTRANGER });
+ok(r.status === 403, 'REGRESSÃO furo: aluno de fora não lê a grade de outra turma (403)', JSON.stringify(r.json));
+
+r = await call('PUT', `/api/timetable/${slotId}`, { jar: JA, body: { startTime: '09:00', endTime: '09:50' } });
+ok(r.status === 200 && r.json?.data?.startTime === '09:00', 'atualiza slot (PUT)', JSON.stringify(r.json));
+
+r = await call('DELETE', `/api/timetable/${slotId}`, { jar: JA });
+ok(r.status === 204, 'exclui slot');
+
+r = await call('POST', '/api/timetable', { jar: JA, body: { classId, dayOfWeek: 2, startTime: '10:00', endTime: '10:50' } });
+ok(r.status === 201, 'slot restante para provar cascade na limpeza', JSON.stringify(r.json)?.slice(0, 120));
+
+console.log('8) LIMPEZA');
 r = await call('DELETE', `/api/grades/${gradeId}`, { jar: JA });
 ok(r.status === 204, 'exclui nota');
 
 r = await call('DELETE', `/api/classes/${classId}`, { jar: JA });
 ok(r.status === 204, 'exclui turma (matrícula/preença morrem em cascata)');
+
+r = await call('GET', `/api/timetable?classId=${classId}`, { jar: JA });
+ok(r.status === 200 && r.json?.data?.length === 0, 'REGRESSÃO: excluir turma remove slots de horário em cascata');
 
 r = await call('DELETE', `/api/subjects/${subjectId}`, { jar: JA });
 ok(r.status === 204, 'exclui matéria');

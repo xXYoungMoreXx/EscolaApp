@@ -113,6 +113,17 @@ export const createGuardianSchema = z.object({
   studentIds: z.array(z.string().uuid()).min(1).max(20),
 });
 
+export const timetableSlotSchema = z.object({
+  dayOfWeek: z.number().int().min(1).max(7),
+  startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use o formato HH:MM'),
+  endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use o formato HH:MM'),
+  room: z.string().max(30).optional(),
+});
+
+export const createTimetableSlotSchema = timetableSlotSchema.extend({ classId: z.string().uuid() });
+
+export const updateTimetableSlotSchema = timetableSlotSchema.partial();
+
 export const createNotificationSchema = z.object({
   userId: z.string().uuid().optional().nullable(),
   targetRole: z.enum(['ADMIN', 'TEACHER', 'STUDENT', 'COORDINATOR']).optional().nullable(),

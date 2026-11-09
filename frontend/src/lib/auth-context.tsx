@@ -32,8 +32,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     axios.get('/api/auth/me')
       .then((me) => {
         if (canceled) return;
-        setUser(me.data.data);
-        localStorage.setItem('user', JSON.stringify(me.data.data));
+        const meUser = me.data?.data?.user;
+        setUser(meUser ?? null);
+        if (meUser) localStorage.setItem('user', JSON.stringify(meUser));
+        else localStorage.removeItem('user');
       })
       .catch(() => {
         if (canceled) return;

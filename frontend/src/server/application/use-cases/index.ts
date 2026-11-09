@@ -7,4 +7,5 @@ export { CreateClassUseCase, GetAllClassesUseCase, GetClassByIdUseCase, UpdateCl
 export { CreateGradeUseCase, GetAllGradesUseCase, GetGradesByStudentUseCase, UpdateGradeUseCase, DeleteGradeUseCase } from './grade.use-case';
 export { CreateAttendanceUseCase, BulkCreateAttendanceUseCase, GetAllAttendancesUseCase, GetAttendanceByClassUseCase, DeleteAttendanceUseCase } from './attendance.use-case';
 export { CreateGuardianUseCase, GetAllGuardiansUseCase, DeleteGuardianUseCase } from './guardian.use-case';
+export { ListTimetableUseCase, CreateTimetableSlotUseCase, UpdateTimetableSlotUseCase, DeleteTimetableSlotUseCase } from './timetable.use-case';
 export { GetStudentReportCardUseCase, GetMyReportCardsUseCase } from './report-card.use-case';

@@ -17,6 +17,7 @@ import {
   HiOutlineMenu,
   HiOutlineX,
   HiOutlineSparkles,
+  HiOutlineCalendar,
 } from 'react-icons/hi';
 
 const menuItems = [
@@ -26,6 +27,7 @@ const menuItems = [
   { href: '/teachers', label: 'Professores', icon: HiOutlineAcademicCap, roles: ['ADMIN', 'COORDINATOR'] },
   { href: '/subjects', label: 'Matérias', icon: HiOutlineBookOpen, roles: ['ADMIN', 'COORDINATOR'] },
   { href: '/classes', label: 'Turmas', icon: HiOutlineCollection, roles: ['ADMIN', 'COORDINATOR'] },
+  { href: '/horario', label: 'Horário', icon: HiOutlineCalendar, roles: ['ADMIN', 'COORDINATOR', 'TEACHER', 'STUDENT', 'GUARDIAN'] },
   { href: '/grades', label: 'Notas', icon: HiOutlineClipboardList, roles: ['ADMIN', 'COORDINATOR', 'TEACHER'] },
   { href: '/attendance', label: 'Presença', icon: HiOutlineCheckCircle, roles: ['ADMIN', 'COORDINATOR', 'TEACHER'] },
   { href: '/settings', label: 'Configurações', icon: HiOutlineCog },

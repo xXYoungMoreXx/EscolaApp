@@ -4,6 +4,7 @@ import { ok, fail, requireAuth, requireRole } from '@/server/http';
 import { allow, clientKey, rateLimited } from '@/server/rate-limit';
 import { getPrisma } from '@/server/infrastructure/database/prisma/client';
 import { hashPassword } from '@/server/infrastructure/auth/jwt';
+import { emailService } from '@/server/infrastructure/email/email.service';
 import { NotFoundError } from '@/server/shared/errors';
 
 export const runtime = 'nodejs';
@@ -28,13 +29,20 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       throw new NotFoundError('Pedido de reset');
     }
     const temp = tempPassword();
-    await prisma.user.update({
+    const owner = await prisma.user.update({
       where: { id: request.userId },
       data: { password: await hashPassword(temp), mustChangePassword: true, active: true },
     });
     await prisma.passwordResetRequest.update({
       where: { id: request.id },
       data: { status: 'APPROVED', resolvedAt: new Date(), resolvedBy: user.userId },
+    });
+    // Com SMTP configurado, a senha temporária chega ao usuário sem depender de
+    // CANAL admin→pessoa; sem SMTP o admin ainda a recebe na resposta (fluxo de dev).
+    await emailService.send({
+      to: owner.email,
+      subject: 'Senha temporária — EscolaApp',
+      text: `Sua senha temporária de acesso é: ${temp}\nUse-a para entrar e defina uma nova senha.`,
     });
     return ok({ tempPassword: temp });
   } catch (error) {

@@ -108,8 +108,25 @@ model Class {
   classStudents ClassStudent[]
   grades        Grade[]
   attendances   Attendance[]
+  timetableSlots TimetableSlot[]
 
   @@unique([name, year, subjectId])
+}
+
+// Horário semanal da turma: slots por dia da semana (1=Seg..7=Dom).
+model TimetableSlot {
+  id        String  @id @default(uuid())
+  classId   String
+  dayOfWeek Int     // 1=Segunda ... 7=Domingo
+  startTime String  // "08:00"
+  endTime   String  // "08:50"
+  room      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  schoolClass Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, dayOfWeek, startTime])
 }
 
 model ClassStudent {

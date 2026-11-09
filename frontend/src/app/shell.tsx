@@ -21,6 +21,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/teachers': 'Professores | EscolaApp',
   '/subjects': 'Matérias | EscolaApp',
   '/classes': 'Turmas | EscolaApp',
+  '/horario': 'Horário | EscolaApp',
   '/grades': 'Notas | EscolaApp',
   '/attendance': 'Presença | EscolaApp',
   '/settings': 'Configurações | EscolaApp',
