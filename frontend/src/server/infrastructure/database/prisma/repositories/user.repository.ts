@@ -9,9 +9,9 @@ export class PrismaUserRepository implements UserRepository {
     this.prisma = getPrisma();
   }
 
-  async findById(id: string) {
-    return this.prisma.user.findUnique({
-      where: { id },
+  async findById(id: string, schoolId?: string) {
+    return this.prisma.user.findFirst({
+      where: { id, ...(schoolId ? { schoolId } : {}) },
       include: { student: { include: { person: true } }, teacher: { include: { person: true } } },
     });
   }
@@ -20,14 +20,17 @@ export class PrismaUserRepository implements UserRepository {
     return this.prisma.user.findUnique({ where: { email } });
   }
 
-  async findAll(params: { page: number; limit: number; search?: string }) {
+  async findAll(params: { page: number; limit: number; search?: string; schoolId?: string }) {
     const { page, limit, search } = params;
     const skip = (page - 1) * limit;
-    const where = search ? { email: { contains: search } } : {};
+    const where = {
+      ...(params.schoolId ? { schoolId: params.schoolId } : {}),
+      ...(search ? { email: { contains: search } } : {}),
+    };
     const [data, total] = await Promise.all([
       this.prisma.user.findMany({
         where,
-        select: { id: true, email: true, role: true, active: true, createdAt: true, updatedAt: true },
+        select: { id: true, email: true, role: true, active: true, schoolId: true, createdAt: true, updatedAt: true },
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },

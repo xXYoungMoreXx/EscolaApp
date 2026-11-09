@@ -17,7 +17,12 @@ export class PrismaNotificationRepository implements NotificationRepository {
     return `${n.title}||${n.message}`;
   }
 
-  async findForUser(userId: string, role: string, onlyUnread = false) {
+  async findForUser(userId: string, role: string, onlyUnread = false, schoolId?: string) {
+    // Broadcasts por papel: da escola do usuário (ou globais, schoolId null).
+    // Admin global (sem escola) enxerga apenas os globais.
+    const broadcastSchool = schoolId
+      ? { OR: [{ schoolId }, { schoolId: null }] }
+      : { schoolId: null };
     const [directs, broadcasts, markers] = await Promise.all([
       this.prisma.notification.findMany({
         where: { userId, ...(onlyUnread ? { read: false } : {}) },
@@ -25,7 +30,7 @@ export class PrismaNotificationRepository implements NotificationRepository {
         take: 50,
       }),
       this.prisma.notification.findMany({
-        where: { userId: null, OR: [{ targetRole: role }, { targetRole: null }] },
+        where: { userId: null, ...broadcastSchool, OR: [{ targetRole: role }, { targetRole: null }] },
         orderBy: { createdAt: 'desc' },
         take: 50,
       }),
@@ -50,11 +55,14 @@ export class PrismaNotificationRepository implements NotificationRepository {
     );
   }
 
-  async countUnread(userId: string, role: string) {
+  async countUnread(userId: string, role: string, schoolId?: string) {
+    const broadcastSchool = schoolId
+      ? { OR: [{ schoolId }, { schoolId: null }] }
+      : { schoolId: null };
     const [directUnread, broadcasts, markers] = await Promise.all([
       this.prisma.notification.count({ where: { userId, read: false } }),
       this.prisma.notification.findMany({
-        where: { userId: null, OR: [{ targetRole: role }, { targetRole: null }] },
+        where: { userId: null, ...broadcastSchool, OR: [{ targetRole: role }, { targetRole: null }] },
         select: { title: true, message: true },
       }),
       this.prisma.notification.findMany({
@@ -70,6 +78,7 @@ export class PrismaNotificationRepository implements NotificationRepository {
   async create(data: {
     userId?: string | null;
     targetRole?: string | null;
+    schoolId?: string | null;
     title: string;
     message: string;
     type?: string;
@@ -78,6 +87,7 @@ export class PrismaNotificationRepository implements NotificationRepository {
       data: {
         userId: data.userId ?? null,
         targetRole: data.targetRole ?? null,
+        schoolId: data.schoolId ?? null,
         title: data.title,
         message: data.message,
         type: data.type ?? 'info',

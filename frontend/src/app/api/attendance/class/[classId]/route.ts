@@ -20,6 +20,7 @@ export async function GET(req: NextRequest, { params }: { params: { classId: str
     const result = await new GetAttendanceByClassUseCase(new PrismaAttendanceRepository()).execute(
       params.classId,
       date,
+      user.schoolId ?? undefined,
     );
     return ok(result);
   } catch (error) {

@@ -6,7 +6,14 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding database...');
 
-  // Create admin user
+  // Escola (tenant) seed — todos os vínculos pertencem a ela.
+  const demoSchool = await prisma.school.upsert({
+    where: { code: 'ESCOLA-001' },
+    update: {},
+    create: { name: 'Escola Demo', code: 'ESCOLA-001' },
+  });
+
+  // Create admin user (global — sem escola)
   const adminPassword = await bcrypt.hash('admin123', 12);
   const admin = await prisma.user.upsert({
     where: { email: 'admin@escola.com' },
@@ -20,8 +27,10 @@ async function main() {
 
   // Create coordinator user
   const coordPassword = await bcrypt.hash('coord123', 12);
-  const coordPerson = await prisma.person.create({
-    data: {
+  const coordPerson = await prisma.person.upsert({
+    where: { cpf: '111.222.333-44' },
+    update: {},
+    create: {
       name: 'Maria Coordenadora',
       cpf: '111.222.333-44',
       phone: '(11) 99999-9999',
@@ -34,6 +43,7 @@ async function main() {
       email: 'coordenador@escola.com',
       password: coordPassword,
       role: 'COORDINATOR',
+      schoolId: demoSchool.id,
     },
   });
   await prisma.teacher.upsert({
@@ -42,13 +52,16 @@ async function main() {
     create: {
       userId: coordUser.id,
       personId: coordPerson.id,
+      schoolId: demoSchool.id,
     },
   });
 
   // Create teacher
   const teacherPassword = await bcrypt.hash('teacher123', 12);
-  const teacherPerson = await prisma.person.create({
-    data: {
+  const teacherPerson = await prisma.person.upsert({
+    where: { cpf: '555.666.777-88' },
+    update: {},
+    create: {
       name: 'João Professor',
       cpf: '555.666.777-88',
       phone: '(11) 88888-8888',
@@ -61,6 +74,7 @@ async function main() {
       email: 'professor@escola.com',
       password: teacherPassword,
       role: 'TEACHER',
+      schoolId: demoSchool.id,
     },
   });
   const teacher = await prisma.teacher.upsert({
@@ -69,6 +83,7 @@ async function main() {
     create: {
       userId: teacherUser.id,
       personId: teacherPerson.id,
+      schoolId: demoSchool.id,
       admission: new Date('2020-01-15'),
       salary: 5000,
     },
@@ -79,32 +94,32 @@ async function main() {
     prisma.subject.upsert({
       where: { code: 'MAT' },
       update: {},
-      create: { name: 'Matemática', code: 'MAT', workload: 80 },
+      create: { name: 'Matemática', code: 'MAT', workload: 80, schoolId: demoSchool.id },
     }),
     prisma.subject.upsert({
       where: { code: 'POR' },
       update: {},
-      create: { name: 'Português', code: 'POR', workload: 80 },
+      create: { name: 'Português', code: 'POR', workload: 80, schoolId: demoSchool.id },
     }),
     prisma.subject.upsert({
       where: { code: 'HIS' },
       update: {},
-      create: { name: 'História', code: 'HIS', workload: 60 },
+      create: { name: 'História', code: 'HIS', workload: 60, schoolId: demoSchool.id },
     }),
     prisma.subject.upsert({
       where: { code: 'GEO' },
       update: {},
-      create: { name: 'Geografia', code: 'GEO', workload: 60 },
+      create: { name: 'Geografia', code: 'GEO', workload: 60, schoolId: demoSchool.id },
     }),
     prisma.subject.upsert({
       where: { code: 'CIU' },
       update: {},
-      create: { name: 'Ciências', code: 'CIU', workload: 60 },
+      create: { name: 'Ciências', code: 'CIU', workload: 60, schoolId: demoSchool.id },
     }),
     prisma.subject.upsert({
       where: { code: 'ING' },
       update: {},
-      create: { name: 'Inglês', code: 'ING', workload: 40 },
+      create: { name: 'Inglês', code: 'ING', workload: 40, schoolId: demoSchool.id },
     }),
   ]);
 
@@ -119,6 +134,7 @@ async function main() {
         shift: 'morning',
         teacherId: teacher.id,
         subjectId: subjects[0].id,
+        schoolId: demoSchool.id,
       },
     }),
     prisma.class.upsert({
@@ -130,6 +146,7 @@ async function main() {
         shift: 'morning',
         teacherId: teacher.id,
         subjectId: subjects[1].id,
+        schoolId: demoSchool.id,
       },
     }),
     prisma.class.upsert({
@@ -141,6 +158,7 @@ async function main() {
         shift: 'afternoon',
         teacherId: teacher.id,
         subjectId: subjects[0].id,
+        schoolId: demoSchool.id,
       },
     }),
   ]);
@@ -150,30 +168,39 @@ async function main() {
   const students = [];
 
   for (let i = 1; i <= 5; i++) {
-    const person = await prisma.person.create({
-      data: {
+    const personCpf = `${String(i).padStart(3, '0')}.111.222-${String(i + 10).padStart(2, '0')}`;
+    const person = await prisma.person.upsert({
+      where: { cpf: personCpf },
+      update: {},
+      create: {
         name: `Aluno ${i}`,
-        cpf: `${String(i).padStart(3, '0')}.111.222-${String(i + 10).padStart(2, '0')}`,
+        cpf: personCpf,
         birthDate: new Date(2008, 0, i * 10),
         gender: i % 2 === 0 ? 'MALE' : 'FEMALE',
         phone: `(11) ${String(900000000 + i).substring(0, 5)}-${String(9000 + i).padStart(4, '0')}`,
       },
     });
 
-    const user = await prisma.user.create({
-      data: {
+    const user = await prisma.user.upsert({
+      where: { email: `aluno${i}@escola.com` },
+      update: {},
+      create: {
         email: `aluno${i}@escola.com`,
         password: studentPassword,
         role: 'STUDENT',
+        schoolId: demoSchool.id,
       },
     });
 
-    const student = await prisma.student.create({
-      data: {
+    const student = await prisma.student.upsert({
+      where: { userId: user.id },
+      update: {},
+      create: {
         userId: user.id,
         personId: person.id,
         registration: `ALU2026${String(i).padStart(4, '0')}`,
         status: 'ACTIVE',
+        schoolId: demoSchool.id,
       },
     });
 
@@ -193,7 +220,7 @@ async function main() {
     });
   }
 
-  // Create grades
+  // Create grades (catch: re-run com nota já existente não derruba o seed)
   const periods = ['1trimestre', '2trimestre', '3trimestre'];
   for (const student of students) {
     for (const period of periods) {
@@ -209,7 +236,7 @@ async function main() {
             value: Math.floor(Math.random() * 40 + 60) / 10, // 6.0 to 10.0
             period,
           },
-        });
+        }).catch(() => { /* nota já existe (re-run) */ });
       }
     }
   }
@@ -232,7 +259,7 @@ async function main() {
           date,
           status: statuses[Math.floor(Math.random() * statuses.length)] as any,
         },
-      });
+      }).catch(() => { /* presença do dia já marcada (re-run) */ });
     }
   }
 
@@ -245,6 +272,7 @@ async function main() {
       email: 'responsavel@escola.com',
       password: guardianPassword,
       role: 'GUARDIAN',
+      schoolId: demoSchool.id,
     },
   });
   const guardianPerson = await prisma.person.upsert({

@@ -24,6 +24,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/horario': 'Horário | EscolaApp',
   '/grades': 'Notas | EscolaApp',
   '/attendance': 'Presença | EscolaApp',
+  '/escolas': 'Escolas | EscolaApp',
   '/settings': 'Configurações | EscolaApp',
 };
 

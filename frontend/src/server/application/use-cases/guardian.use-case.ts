@@ -8,6 +8,7 @@ interface CreateGuardianData {
   person: { name: string; cpf: string; [key: string]: any };
   relationship?: string;
   studentIds: string[];
+  schoolId?: string;
 }
 
 export class CreateGuardianUseCase {
@@ -25,9 +26,12 @@ export class CreateGuardianUseCase {
     const cpfTaken = await prisma.person.findUnique({ where: { cpf: data.person.cpf }, select: { id: true } });
     if (cpfTaken) throw new ConflictError('CPF já cadastrado');
 
-    const missing = await prisma.student.count({ where: { id: { in: data.studentIds } } });
+    // Vínculos só com alunos da mesma escola do ator (fora do escopo → 404).
+    const missing = await prisma.student.count({
+      where: { id: { in: data.studentIds }, ...(data.schoolId ? { schoolId: data.schoolId } : {}) },
+    });
     if (missing !== data.studentIds.length) {
-      throw new ValidationError('Algum dos alunos informados não existe');
+      throw new NotFoundError('Aluno', 'vinculado');
     }
 
     const { user, person, guardian } = await prisma.$transaction(async (tx) => {
@@ -36,11 +40,12 @@ export class CreateGuardianUseCase {
           email: data.user.email,
           password: await hashPassword(data.user.password),
           role: 'GUARDIAN',
+          ...(data.schoolId ? { schoolId: data.schoolId } : {}),
         },
       });
       const person = await tx.person.create({ data: data.person });
       const guardian = await tx.guardian.create({
-        data: { userId: user.id, personId: person.id, relationship: data.relationship },
+        data: { userId: user.id, personId: person.id, relationship: data.relationship, ...(data.schoolId ? { schoolId: data.schoolId } : {}) },
       });
       await tx.studentGuardian.createMany({
         data: data.studentIds.map((studentId) => ({ guardianId: guardian.id, studentId })),
@@ -55,7 +60,7 @@ export class CreateGuardianUseCase {
 }
 
 export class GetAllGuardiansUseCase {
-  async execute(params: { page: number; limit: number; search?: string }) {
+  async execute(params: { page: number; limit: number; search?: string; schoolId?: string }) {
     const { PrismaGuardianRepository } = await import(
       '../../infrastructure/database/prisma/repositories'
     );
@@ -64,12 +69,12 @@ export class GetAllGuardiansUseCase {
 }
 
 export class DeleteGuardianUseCase {
-  async execute(id: string) {
+  async execute(id: string, schoolId?: string) {
     const { PrismaGuardianRepository } = await import(
       '../../infrastructure/database/prisma/repositories'
     );
     const repo = new PrismaGuardianRepository();
-    const guardian = await repo.findById(id);
+    const guardian = await repo.findById(id, schoolId);
     if (!guardian) {
       throw new NotFoundError('Responsável', id);
     }

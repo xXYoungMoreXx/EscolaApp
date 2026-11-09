@@ -4,6 +4,7 @@ import { allow, clientKey, rateLimited } from '@/server/rate-limit';
 import { CreateSubjectUseCase, GetAllSubjectsUseCase } from '@/server/application/use-cases';
 import { PrismaSubjectRepository } from '@/server/infrastructure/database/prisma/repositories';
 import { createSubjectSchema } from '@/server/shared/validators';
+import { tenantOf, targetSchoolId } from '@/server/shared/tenancy';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
     const user = requireAuth(req);
     requireRole(user, 'ADMIN', 'COORDINATOR', 'TEACHER');
     const params = getPagination(req);
-    const result = await new GetAllSubjectsUseCase(new PrismaSubjectRepository()).execute(params);
+    const result = await new GetAllSubjectsUseCase(new PrismaSubjectRepository()).execute({ ...params, schoolId: tenantOf(user) });
     return okPage(result);
   } catch (error) {
     return fail(error);
@@ -26,7 +27,12 @@ export async function POST(req: NextRequest) {
     requireRole(user, 'ADMIN', 'COORDINATOR');
     if (!(await allow(clientKey(req, 'write')))) return rateLimited();
     const body = createSubjectSchema.parse(await req.json());
-    const result = await new CreateSubjectUseCase(new PrismaSubjectRepository()).execute(body);
+    const bodySchoolId = body.schoolId;
+    delete body.schoolId;
+    const result = await new CreateSubjectUseCase(new PrismaSubjectRepository()).execute({
+      ...body,
+      schoolId: await targetSchoolId(user, bodySchoolId),
+    });
     return okCreated(result);
   } catch (error) {
     return fail(error);

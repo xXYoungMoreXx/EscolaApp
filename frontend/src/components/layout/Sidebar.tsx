@@ -18,6 +18,7 @@ import {
   HiOutlineX,
   HiOutlineSparkles,
   HiOutlineCalendar,
+  HiOutlineOfficeBuilding,
 } from 'react-icons/hi';
 
 const menuItems = [
@@ -30,6 +31,7 @@ const menuItems = [
   { href: '/horario', label: 'Horário', icon: HiOutlineCalendar, roles: ['ADMIN', 'COORDINATOR', 'TEACHER', 'STUDENT', 'GUARDIAN'] },
   { href: '/grades', label: 'Notas', icon: HiOutlineClipboardList, roles: ['ADMIN', 'COORDINATOR', 'TEACHER'] },
   { href: '/attendance', label: 'Presença', icon: HiOutlineCheckCircle, roles: ['ADMIN', 'COORDINATOR', 'TEACHER'] },
+  { href: '/escolas', label: 'Escolas', icon: HiOutlineOfficeBuilding, roles: ['ADMIN'], onlyGlobal: true },
   { href: '/settings', label: 'Configurações', icon: HiOutlineCog },
   { href: '/changelog', label: 'Novidades', icon: HiOutlineSparkles },
 ];
@@ -111,7 +113,7 @@ export default function Sidebar() {
           {/* Navigation */}
           <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
             {menuItems
-              .filter((item) => !item.roles || item.roles.includes(user?.role || ''))
+              .filter((item) => (!item.roles || item.roles.includes(user?.role || '')) && (!item.onlyGlobal || !user?.schoolId))
               .map((item) => (
               <Link
                 key={item.href}

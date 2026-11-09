@@ -9,9 +9,9 @@ export class PrismaSubjectRepository implements SubjectRepository {
     this.prisma = getPrisma();
   }
 
-  async findById(id: string) {
-    return this.prisma.subject.findUnique({
-      where: { id },
+  async findById(id: string, schoolId?: string) {
+    return this.prisma.subject.findFirst({
+      where: { id, ...(schoolId ? { schoolId } : {}) },
       include: { classes: true },
     });
   }
@@ -24,14 +24,17 @@ export class PrismaSubjectRepository implements SubjectRepository {
     const { page, limit, search } = params;
     const skip = (page - 1) * limit;
 
-    const where = search
-      ? {
-          OR: [
-            { name: { contains: search } },
-            { code: { contains: search } },
-          ],
-        }
-      : {};
+    const where = {
+      ...(params.schoolId ? { schoolId: params.schoolId } : {}),
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search } },
+              { code: { contains: search } },
+            ],
+          }
+        : {}),
+    };
 
     const [data, total] = await Promise.all([
       this.prisma.subject.findMany({

@@ -14,14 +14,34 @@ model User {
   role      String   // ADMIN | TEACHER | STUDENT | COORDINATOR | GUARDIAN
   active    Boolean  @default(true)
   mustChangePassword Boolean @default(false)
+  schoolId  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  school   School? @relation(fields: [schoolId], references: [id])
   student  Student?
   teacher  Teacher?
   guardian Guardian?
   notifications Notification[]
   resetRequests PasswordResetRequest[]
+}
+
+// Escola (tenant). Admin global = User ADMIN com schoolId null.
+model School {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  students  Student[]
+  teachers  Teacher[]
+  guardians Guardian[]
+  subjects  Subject[]
+  classes   Class[]
+  notifications Notification[]
 }
 
 model Person {
@@ -51,9 +71,11 @@ model Student {
   registration   String  @unique
   status         String  @default("ACTIVE") // ACTIVE | INACTIVE | TRANSFERRED | GRADUATED
   enrollmentDate DateTime @default(now())
+  schoolId       String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  school        School?       @relation(fields: [schoolId], references: [id])
   user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   person        Person        @relation(fields: [personId], references: [id], onDelete: Cascade)
   grades        Grade[]
@@ -68,9 +90,11 @@ model Teacher {
   personId  String    @unique
   admission DateTime?
   salary    Float?
+  schoolId  String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
+  school   School?  @relation(fields: [schoolId], references: [id])
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   person   Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
   subjects Subject[]
@@ -84,13 +108,15 @@ model Subject {
   code        String   @unique
   description String?
   workload    Int
+  schoolId    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  teacherId String?
-  teacher   Teacher? @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  classes   Class[]
-  grades    Grade[]
+  school     School?   @relation(fields: [schoolId], references: [id])
+  teacherId  String?
+  teacher    Teacher? @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  classes    Class[]
+  grades     Grade[]
 }
 
 model Class {
@@ -100,9 +126,11 @@ model Class {
   shift     String   // morning | afternoon | night
   teacherId String
   subjectId String
+  schoolId  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  school        School?         @relation(fields: [schoolId], references: [id])
   teacher       Teacher        @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   subject       Subject        @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   classStudents ClassStudent[]
@@ -192,9 +220,11 @@ model Guardian {
   userId       String   @unique
   personId     String   @unique
   relationship String?  // PAI | MAE | RESPONSAVEL
+  schoolId     String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  school   School?          @relation(fields: [schoolId], references: [id])
   user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   person   Person           @relation(fields: [personId], references: [id], onDelete: Cascade)
   students StudentGuardian[]
@@ -204,6 +234,7 @@ model Notification {
   id         String   @id @default(uuid())
   userId     String?  // null = broadcast por papel
   targetRole String?  // ADMIN | TEACHER | STUDENT | COORDINATOR (quando broadcast)
+  schoolId   String?  // escola do broadcast; null = todas as escolas (admin global)
   title      String
   message    String
   type       String   @default("info") // info | success | warning | grade | enrollment | announcement
@@ -211,6 +242,7 @@ model Notification {
   createdAt  DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school School? @relation(fields: [schoolId], references: [id])
 }
 
 model PasswordResetRequest {

@@ -9,9 +9,9 @@ export class PrismaTeacherRepository implements TeacherRepository {
     this.prisma = getPrisma();
   }
 
-  async findById(id: string) {
-    return this.prisma.teacher.findUnique({
-      where: { id },
+  async findById(id: string, schoolId?: string) {
+    return this.prisma.teacher.findFirst({
+      where: { id, ...(schoolId ? { schoolId } : {}) },
       include: { user: true, person: true, subjects: true, classes: true },
     });
   }
@@ -20,14 +20,17 @@ export class PrismaTeacherRepository implements TeacherRepository {
     const { page, limit, search } = params;
     const skip = (page - 1) * limit;
 
-    const where = search
-      ? {
-          OR: [
-            { person: { name: { contains: search } } },
-            { user: { email: { contains: search } } },
-          ],
-        }
-      : {};
+    const where = {
+      ...(params.schoolId ? { schoolId: params.schoolId } : {}),
+      ...(search
+        ? {
+            OR: [
+              { person: { name: { contains: search } } },
+              { user: { email: { contains: search } } },
+            ],
+          }
+        : {}),
+    };
 
     const [data, total] = await Promise.all([
       this.prisma.teacher.findMany({
@@ -53,6 +56,7 @@ export class PrismaTeacherRepository implements TeacherRepository {
         personId: data.personId,
         admission: data.admission ? new Date(data.admission) : null,
         salary: data.salary || null,
+        ...(data.schoolId ? { schoolId: data.schoolId } : {}),
       },
       include: { user: true, person: true },
     });

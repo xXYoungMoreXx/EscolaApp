@@ -9,9 +9,9 @@ export class PrismaStudentRepository implements StudentRepository {
     this.prisma = getPrisma();
   }
 
-  async findById(id: string) {
-    return this.prisma.student.findUnique({
-      where: { id },
+  async findById(id: string, schoolId?: string) {
+    return this.prisma.student.findFirst({
+      where: { id, ...(schoolId ? { schoolId } : {}) },
       include: { user: true, person: true, classStudents: { include: { class: true } } },
     });
   }
@@ -24,15 +24,18 @@ export class PrismaStudentRepository implements StudentRepository {
     const { page, limit, search } = params;
     const skip = (page - 1) * limit;
 
-    const where = search
-      ? {
-          OR: [
-            { registration: { contains: search } },
-            { person: { name: { contains: search } } },
-            { user: { email: { contains: search } } },
-          ],
-        }
-      : {};
+    const where = {
+      ...(params.schoolId ? { schoolId: params.schoolId } : {}),
+      ...(search
+        ? {
+            OR: [
+              { registration: { contains: search } },
+              { person: { name: { contains: search } } },
+              { user: { email: { contains: search } } },
+            ],
+          }
+        : {}),
+    };
 
     const [data, total] = await Promise.all([
       this.prisma.student.findMany({
@@ -58,6 +61,7 @@ export class PrismaStudentRepository implements StudentRepository {
         personId: data.personId,
         registration: data.registration,
         status: data.status || 'ACTIVE',
+        ...(data.schoolId ? { schoolId: data.schoolId } : {}),
       },
       include: { user: true, person: true },
     });
@@ -79,7 +83,7 @@ export class PrismaStudentRepository implements StudentRepository {
     }
   }
 
-  async count() {
-    return this.prisma.student.count();
+  async count(schoolId?: string) {
+    return this.prisma.student.count({ ...(schoolId ? { where: { schoolId } } : {}) });
   }
 }

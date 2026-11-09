@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import { HiOutlineAcademicCap } from 'react-icons/hi';
 
 export default function RegisterPage() {
-  const [form, setForm] = useState({ name: '', cpf: '', email: '', password: '', confirm: '', phone: '' });
+  const [form, setForm] = useState({ name: '', cpf: '', email: '', password: '', confirm: '', phone: '', schoolCode: '' });
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -37,6 +37,7 @@ export default function RegisterPage() {
       await api.post('/api/auth/register', {
         user: { email: form.email, password: form.password },
         person: { name: form.name, cpf: form.cpf, phone: form.phone || undefined },
+        schoolCode: form.schoolCode.toUpperCase().trim(),
       });
       setDone(true);
     } catch (error: any) {
@@ -73,6 +74,18 @@ export default function RegisterPage() {
             <>
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Criar conta</h2>
               <form onSubmit={submit} className="space-y-4">
+                <div>
+                  <label className="label" htmlFor="schoolCode">Código da escola *</label>
+                  <input
+                    id="schoolCode"
+                    className="input-field"
+                    placeholder="Ex.: ESCOLA-001"
+                    value={form.schoolCode}
+                    onChange={set('schoolCode')}
+                    required
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Informe o código que a sua escola recebeu.</p>
+                </div>
                 <div>
                   <label className="label" htmlFor="name">Nome completo *</label>
                   <input id="name" className="input-field" value={form.name} onChange={set('name')} required autoComplete="name" />

@@ -31,7 +31,8 @@ function cookieHeader(jar) { return [...jar.m].map(([k, v]) => `${k}=${v}`).join
 function rawJar(name, value) { const j = newJar(); j.m.set(name, value); return j; }
 
 async function call(method, path, { body, jar, rawCookie } = {}) {
-  const headers = { 'Content-Type': 'application/json' };
+  // IP simulado próprio da suíte: isola o rate limit (login/register) da suíte core.
+  const headers = { 'Content-Type': 'application/json', 'x-forwarded-for': '203.0.113.11' };
   const cookieValue = rawCookie ?? (jar ? cookieHeader(jar) : null);
   if (cookieValue) headers.Cookie = cookieValue;
   const res = await fetch(BASE + path, {
@@ -71,10 +72,20 @@ let r = await call('POST', '/api/auth/register', {
   body: {
     user: { email: STUDENT_EMAIL, password: USER_PASS },
     person: { name: 'Aluno Teste E2E', cpf: CPF },
+    schoolCode: 'ESCOLA-001',
   },
 });
 ok(r.status === 201, 'cadastro retorna 201 e mensagem de aguardo', JSON.stringify(r.json));
 ok(r.json?.success === true, 'resposta com success=true');
+
+r = await call('POST', '/api/auth/register', {
+  body: {
+    user: { email: STUDENT_EMAIL, password: USER_PASS },
+    person: { name: 'Código Inexistente', cpf: genCpf(STAMP + 77) },
+    schoolCode: 'INEXISTENTE-999',
+  },
+});
+ok(r.status === 404, 'código de escola inválido recusa o cadastro (404)', JSON.stringify(r.json));
 
 r = await call('POST', '/api/auth/login', { body: { email: STUDENT_EMAIL, password: USER_PASS } });
 ok(r.status === 401 && r.json?.error?.message === 'Conta desativada', 'login de conta recém-cadastrada bloqueado (401 Conta desativada)', JSON.stringify(r.json));
@@ -84,6 +95,7 @@ r = await call('POST', '/api/auth/register', {
   body: {
     user: { email: dupEmail, password: USER_PASS },
     person: { name: 'CPF Duplicado', cpf: CPF },
+    schoolCode: 'ESCOLA-001',
   },
 });
 ok(r.status === 409, 'CPF duplicado é recusado (409)', JSON.stringify(r.json));
@@ -94,6 +106,7 @@ r = await call('POST', '/api/auth/register', {
   body: {
     user: { email: STUDENT_EMAIL, password: USER_PASS },
     person: { name: 'Email Duplicado', cpf: genCpf(STAMP + 1) },
+    schoolCode: 'ESCOLA-001',
   },
 });
 ok(r.status === 409, 'email duplicado é recusado (409)', JSON.stringify(r.json));

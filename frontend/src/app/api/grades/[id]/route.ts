@@ -4,6 +4,7 @@ import { allow, clientKey, rateLimited } from '@/server/rate-limit';
 import { UpdateGradeUseCase, DeleteGradeUseCase } from '@/server/application/use-cases';
 import { PrismaGradeRepository } from '@/server/infrastructure/database/prisma/repositories';
 import { updateGradeSchema } from '@/server/shared/validators';
+import { tenantOf } from '@/server/shared/tenancy';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,6 +20,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     const result = await new UpdateGradeUseCase(new PrismaGradeRepository()).execute(
       params.id,
       body,
+      tenantOf(user),
     );
     return ok(result);
   } catch (error) {
@@ -31,7 +33,7 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
     const user = requireAuth(req);
     requireRole(user, 'ADMIN', 'COORDINATOR');
     if (!(await allow(clientKey(req, 'write')))) return rateLimited();
-    await new DeleteGradeUseCase(new PrismaGradeRepository()).execute(params.id);
+    await new DeleteGradeUseCase(new PrismaGradeRepository()).execute(params.id, tenantOf(user));
     return noContent();
   } catch (error) {
     return fail(error);

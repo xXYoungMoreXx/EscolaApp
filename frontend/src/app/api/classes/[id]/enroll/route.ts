@@ -4,6 +4,7 @@ import { okCreated, fail, requireAuth, requireRole } from '@/server/http';
 import { allow, clientKey, rateLimited } from '@/server/rate-limit';
 import { EnrollStudentUseCase } from '@/server/application/use-cases';
 import { PrismaClassRepository } from '@/server/infrastructure/database/prisma/repositories';
+import { tenantOf } from '@/server/shared/tenancy';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,6 +20,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const result = await new EnrollStudentUseCase(new PrismaClassRepository()).execute(
       params.id,
       body.studentId,
+      tenantOf(user),
     );
     return okCreated(result);
   } catch (error) {

@@ -21,6 +21,8 @@ export interface TokenPayload {
   email: string;
   role: string;
   mustChangePassword?: boolean;
+  /** Escola (tenant) do usuário; undefined/null = ADMIN global. */
+  schoolId?: string;
   /** Marcador de versão da senha (updatedAt do usuário) — permite invalidar tokens após troca/reset. */
   pwd?: string;
 }

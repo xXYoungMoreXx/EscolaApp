@@ -9,9 +9,9 @@ export class PrismaClassRepository implements ClassRepository {
     this.prisma = getPrisma();
   }
 
-  async findById(id: string) {
-    return this.prisma.class.findUnique({
-      where: { id },
+  async findById(id: string, schoolId?: string) {
+    return this.prisma.class.findFirst({
+      where: { id, ...(schoolId ? { schoolId } : {}) },
       include: {
         teacher: { include: { person: true } },
         subject: true,
@@ -24,14 +24,17 @@ export class PrismaClassRepository implements ClassRepository {
     const { page, limit, search } = params;
     const skip = (page - 1) * limit;
 
-    const where = search
-      ? {
-          OR: [
-            { name: { contains: search } },
-            { subject: { name: { contains: search } } },
-          ],
-        }
-      : {};
+    const where = {
+      ...(params.schoolId ? { schoolId: params.schoolId } : {}),
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search } },
+              { subject: { name: { contains: search } } },
+            ],
+          }
+        : {}),
+    };
 
     const [data, total] = await Promise.all([
       this.prisma.class.findMany({
@@ -62,6 +65,7 @@ export class PrismaClassRepository implements ClassRepository {
         shift: data.shift,
         teacherId: data.teacherId,
         subjectId: data.subjectId,
+        ...(data.schoolId ? { schoolId: data.schoolId } : {}),
       },
       include: { teacher: true, subject: true },
     });

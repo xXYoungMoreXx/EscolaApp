@@ -62,6 +62,8 @@ export interface User {
   email: string;
   role: 'ADMIN' | 'TEACHER' | 'STUDENT' | 'COORDINATOR';
   mustChangePassword?: boolean;
+  /** Escola (tenant) do usuário; ausente/null = admin global. */
+  schoolId?: string | null;
 }
 
 export interface Person {

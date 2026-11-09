@@ -5,7 +5,7 @@ import { logger } from '../../shared/logger';
 export class CreateSubjectUseCase {
   constructor(private subjectRepository: SubjectRepository) {}
 
-  async execute(data: { name: string; code: string; description?: string; workload: number }) {
+  async execute(data: { name: string; code: string; description?: string; workload: number; schoolId?: string }) {
     const existing = await this.subjectRepository.findByCode(data.code);
     if (existing) {
       throw new ConflictError('Código da matéria já existe');
@@ -20,7 +20,7 @@ export class CreateSubjectUseCase {
 export class GetAllSubjectsUseCase {
   constructor(private subjectRepository: SubjectRepository) {}
 
-  async execute(params: { page: number; limit: number; search?: string }) {
+  async execute(params: { page: number; limit: number; search?: string; schoolId?: string }) {
     return this.subjectRepository.findAll(params);
   }
 }
@@ -28,8 +28,8 @@ export class GetAllSubjectsUseCase {
 export class GetSubjectByIdUseCase {
   constructor(private subjectRepository: SubjectRepository) {}
 
-  async execute(id: string) {
-    const subject = await this.subjectRepository.findById(id);
+  async execute(id: string, schoolId?: string) {
+    const subject = await this.subjectRepository.findById(id, schoolId);
     if (!subject) {
       throw new NotFoundError('Matéria', id);
     }
@@ -40,8 +40,8 @@ export class GetSubjectByIdUseCase {
 export class UpdateSubjectUseCase {
   constructor(private subjectRepository: SubjectRepository) {}
 
-  async execute(id: string, data: any) {
-    const subject = await this.subjectRepository.findById(id);
+  async execute(id: string, data: any, schoolId?: string) {
+    const subject = await this.subjectRepository.findById(id, schoolId);
     if (!subject) {
       throw new NotFoundError('Matéria', id);
     }
@@ -55,8 +55,8 @@ export class UpdateSubjectUseCase {
 export class DeleteSubjectUseCase {
   constructor(private subjectRepository: SubjectRepository) {}
 
-  async execute(id: string) {
-    const subject = await this.subjectRepository.findById(id);
+  async execute(id: string, schoolId?: string) {
+    const subject = await this.subjectRepository.findById(id, schoolId);
     if (!subject) {
       throw new NotFoundError('Matéria', id);
     }

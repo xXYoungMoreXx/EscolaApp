@@ -9,9 +9,9 @@ export class PrismaGuardianRepository implements GuardianRepository {
     this.prisma = getPrisma();
   }
 
-  async findById(id: string) {
-    return this.prisma.guardian.findUnique({
-      where: { id },
+  async findById(id: string, schoolId?: string) {
+    return this.prisma.guardian.findFirst({
+      where: { id, ...(schoolId ? { schoolId } : {}) },
       include: {
         user: true,
         person: true,
@@ -24,14 +24,17 @@ export class PrismaGuardianRepository implements GuardianRepository {
     const { page, limit, search } = params;
     const skip = (page - 1) * limit;
 
-    const where = search
-      ? {
-          OR: [
-            { person: { name: { contains: search } } },
-            { user: { email: { contains: search } } },
-          ],
-        }
-      : {};
+    const where = {
+      ...(params.schoolId ? { schoolId: params.schoolId } : {}),
+      ...(search
+        ? {
+            OR: [
+              { person: { name: { contains: search } } },
+              { user: { email: { contains: search } } },
+            ],
+          }
+        : {}),
+    };
 
     const [data, total] = await Promise.all([
       this.prisma.guardian.findMany({
@@ -66,9 +69,15 @@ export class PrismaGuardianRepository implements GuardianRepository {
     userId: string;
     personId: string;
     relationship?: string | null;
+    schoolId?: string;
   }) {
     return this.prisma.guardian.create({
-      data: { userId: data.userId, personId: data.personId, relationship: data.relationship },
+      data: {
+        userId: data.userId,
+        personId: data.personId,
+        relationship: data.relationship,
+        ...(data.schoolId ? { schoolId: data.schoolId } : {}),
+      },
       include: { user: true, person: true },
     });
   }

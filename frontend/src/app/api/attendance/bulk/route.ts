@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
     const body = bodySchema.parse(await req.json());
     const result = await new BulkCreateAttendanceUseCase(new PrismaAttendanceRepository()).execute(
       body.records,
+      user.schoolId ?? undefined,
     );
     return okCreated(result);
   } catch (error) {

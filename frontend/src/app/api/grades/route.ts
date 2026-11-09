@@ -5,6 +5,7 @@ import { allow, clientKey, rateLimited } from '@/server/rate-limit';
 import { CreateGradeUseCase, GetAllGradesUseCase } from '@/server/application/use-cases';
 import { PrismaGradeRepository } from '@/server/infrastructure/database/prisma/repositories';
 import { createGradeSchema } from '@/server/shared/validators';
+import { tenantOf } from '@/server/shared/tenancy';
 
 const bodySchema = createGradeSchema.extend({ teacherId: z.string().uuid().optional() });
 
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
     const user = requireAuth(req);
     requireRole(user, 'ADMIN', 'COORDINATOR', 'TEACHER');
     const params = getPagination(req);
-    const result = await new GetAllGradesUseCase(new PrismaGradeRepository()).execute(params);
+    const result = await new GetAllGradesUseCase(new PrismaGradeRepository()).execute({ ...params, schoolId: tenantOf(user) });
     return okPage(result);
   } catch (error) {
     return fail(error);
@@ -32,6 +33,7 @@ export async function POST(req: NextRequest) {
     const result = await new CreateGradeUseCase(new PrismaGradeRepository()).execute(body, {
       role: user.role,
       userId: user.userId,
+      schoolId: user.schoolId ?? undefined,
     });
     return okCreated(result);
   } catch (error) {

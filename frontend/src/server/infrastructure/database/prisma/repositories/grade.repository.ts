@@ -9,9 +9,9 @@ export class PrismaGradeRepository implements GradeRepository {
     this.prisma = getPrisma();
   }
 
-  async findById(id: string) {
-    return this.prisma.grade.findUnique({
-      where: { id },
+  async findById(id: string, schoolId?: string) {
+    return this.prisma.grade.findFirst({
+      where: { id, ...(schoolId ? { class: { schoolId } } : {}) },
       include: {
         student: { include: { person: true } },
         class: true,
@@ -33,14 +33,17 @@ export class PrismaGradeRepository implements GradeRepository {
     const { page, limit, search } = params;
     const skip = (page - 1) * limit;
 
-    const where = search
-      ? {
-          OR: [
-            { student: { person: { name: { contains: search } } } },
-            { student: { registration: { contains: search } } },
-          ],
-        }
-      : {};
+    const where = {
+      ...(params.schoolId ? { class: { schoolId: params.schoolId } } : {}),
+      ...(search
+        ? {
+            OR: [
+              { student: { person: { name: { contains: search } } } },
+              { student: { registration: { contains: search } } },
+            ],
+          }
+        : {}),
+    };
 
     const [data, total] = await Promise.all([
       this.prisma.grade.findMany({

@@ -12,6 +12,7 @@ export class CreateStudentUseCase {
   async execute(data: {
     user: { email: string; password: string; role?: string };
     person: { name: string; cpf: string; [key: string]: any };
+    schoolId?: string;
   }) {
     const { getPrisma } = await import('../../infrastructure/database/prisma/client');
     const prisma = getPrisma();
@@ -28,11 +29,12 @@ export class CreateStudentUseCase {
           email: data.user.email,
           password: await hashPassword(data.user.password),
           role: data.user.role ?? 'STUDENT',
+          ...(data.schoolId ? { schoolId: data.schoolId } : {}),
         },
       });
       const person = await tx.person.create({ data: data.person });
       const student = await tx.student.create({
-        data: { userId: user.id, personId: person.id, registration },
+        data: { userId: user.id, personId: person.id, registration, ...(data.schoolId ? { schoolId: data.schoolId } : {}) },
       });
       return { user, person, student };
     });
@@ -71,7 +73,7 @@ export class CreateStudentUseCase {
 export class GetAllStudentsUseCase {
   constructor(private studentRepository: StudentRepository) {}
 
-  async execute(params: { page: number; limit: number; search?: string }) {
+  async execute(params: { page: number; limit: number; search?: string; schoolId?: string }) {
     return this.studentRepository.findAll(params);
   }
 }
@@ -79,8 +81,8 @@ export class GetAllStudentsUseCase {
 export class GetStudentByIdUseCase {
   constructor(private studentRepository: StudentRepository) {}
 
-  async execute(id: string) {
-    const student = await this.studentRepository.findById(id);
+  async execute(id: string, schoolId?: string) {
+    const student = await this.studentRepository.findById(id, schoolId);
     if (!student) {
       throw new NotFoundError('Aluno', id);
     }
@@ -91,8 +93,8 @@ export class GetStudentByIdUseCase {
 export class UpdateStudentUseCase {
   constructor(private studentRepository: StudentRepository) {}
 
-  async execute(id: string, data: any) {
-    const student = await this.studentRepository.findById(id);
+  async execute(id: string, data: any, schoolId?: string) {
+    const student = await this.studentRepository.findById(id, schoolId);
     if (!student) {
       throw new NotFoundError('Aluno', id);
     }
@@ -106,8 +108,8 @@ export class UpdateStudentUseCase {
 export class DeleteStudentUseCase {
   constructor(private studentRepository: StudentRepository) {}
 
-  async execute(id: string) {
-    const student = await this.studentRepository.findById(id);
+  async execute(id: string, schoolId?: string) {
+    const student = await this.studentRepository.findById(id, schoolId);
     if (!student) {
       throw new NotFoundError('Aluno', id);
     }
@@ -120,8 +122,8 @@ export class DeleteStudentUseCase {
 export class GetStudentStatsUseCase {
   constructor(private studentRepository: StudentRepository) {}
 
-  async execute() {
-    const total = await this.studentRepository.count();
+  async execute(schoolId?: string) {
+    const total = await this.studentRepository.count(schoolId);
     return { totalStudents: total };
   }
 }

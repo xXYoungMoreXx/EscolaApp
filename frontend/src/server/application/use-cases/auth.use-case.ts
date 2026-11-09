@@ -26,13 +26,14 @@ export class LoginUseCase {
       email: user.email,
       role: user.role,
       mustChangePassword: user.mustChangePassword,
+      schoolId: user.schoolId ?? undefined,
       pwd: user.updatedAt.toISOString(),
     });
 
     logger.info({ userId: user.id, role: user.role }, 'User logged in');
 
     return {
-      user: { id: user.id, email: user.email, role: user.role, mustChangePassword: user.mustChangePassword },
+      user: { id: user.id, email: user.email, role: user.role, mustChangePassword: user.mustChangePassword, schoolId: user.schoolId },
       ...tokens,
     };
   }
@@ -65,12 +66,13 @@ export class ChangePasswordUseCase {
       email: updated.email,
       role: updated.role,
       mustChangePassword: false,
+      schoolId: updated.schoolId ?? undefined,
       pwd: updated.updatedAt.toISOString(),
     });
 
     logger.info({ userId }, 'Password changed');
     return {
-      user: { id: updated.id, email: updated.email, role: updated.role, mustChangePassword: false },
+      user: { id: updated.id, email: updated.email, role: updated.role, mustChangePassword: false, schoolId: updated.schoolId },
       ...tokens,
     };
   }
@@ -79,7 +81,7 @@ export class ChangePasswordUseCase {
 export class ListUsersUseCase {
   constructor(private userRepository: UserRepository) {}
 
-  async execute(params: { page: number; limit: number; search?: string }) {
+  async execute(params: { page: number; limit: number; search?: string; schoolId?: string }) {
     return this.userRepository.findAll(params);
   }
 }
@@ -87,8 +89,8 @@ export class ListUsersUseCase {
 export class SetUserActiveUseCase {
   constructor(private userRepository: UserRepository) {}
 
-  async execute(id: string, active: boolean) {
-    const user = await this.userRepository.findById(id);
+  async execute(id: string, active: boolean, schoolId?: string) {
+    const user = await this.userRepository.findById(id, schoolId);
     if (!user) {
       throw new NotFoundError('Usuário', id);
     }

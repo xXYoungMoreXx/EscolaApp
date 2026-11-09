@@ -14,6 +14,7 @@ export class CreateTeacherUseCase {
     person: { name: string; cpf: string; [key: string]: any };
     admission?: string;
     salary?: number;
+    schoolId?: string;
   }) {
     const { getPrisma } = await import('../../infrastructure/database/prisma/client');
     const prisma = getPrisma();
@@ -30,6 +31,7 @@ export class CreateTeacherUseCase {
           email: data.user.email,
           password: await hashPassword(data.user.password),
           role: 'TEACHER',
+          ...(data.schoolId ? { schoolId: data.schoolId } : {}),
         },
       });
       const person = await tx.person.create({ data: data.person });
@@ -39,6 +41,7 @@ export class CreateTeacherUseCase {
           personId: person.id,
           admission: data.admission,
           salary: data.salary,
+          ...(data.schoolId ? { schoolId: data.schoolId } : {}),
         },
       });
       return { user, person, teacher };
@@ -52,7 +55,7 @@ export class CreateTeacherUseCase {
 export class GetAllTeachersUseCase {
   constructor(private teacherRepository: TeacherRepository) {}
 
-  async execute(params: { page: number; limit: number; search?: string }) {
+  async execute(params: { page: number; limit: number; search?: string; schoolId?: string }) {
     return this.teacherRepository.findAll(params);
   }
 }
@@ -60,8 +63,8 @@ export class GetAllTeachersUseCase {
 export class GetTeacherByIdUseCase {
   constructor(private teacherRepository: TeacherRepository) {}
 
-  async execute(id: string) {
-    const teacher = await this.teacherRepository.findById(id);
+  async execute(id: string, schoolId?: string) {
+    const teacher = await this.teacherRepository.findById(id, schoolId);
     if (!teacher) {
       throw new NotFoundError('Professor', id);
     }
@@ -72,8 +75,8 @@ export class GetTeacherByIdUseCase {
 export class UpdateTeacherUseCase {
   constructor(private teacherRepository: TeacherRepository) {}
 
-  async execute(id: string, data: any) {
-    const teacher = await this.teacherRepository.findById(id);
+  async execute(id: string, data: any, schoolId?: string) {
+    const teacher = await this.teacherRepository.findById(id, schoolId);
     if (!teacher) {
       throw new NotFoundError('Professor', id);
     }
@@ -87,8 +90,8 @@ export class UpdateTeacherUseCase {
 export class DeleteTeacherUseCase {
   constructor(private teacherRepository: TeacherRepository) {}
 
-  async execute(id: string) {
-    const teacher = await this.teacherRepository.findById(id);
+  async execute(id: string, schoolId?: string) {
+    const teacher = await this.teacherRepository.findById(id, schoolId);
     if (!teacher) {
       throw new NotFoundError('Professor', id);
     }

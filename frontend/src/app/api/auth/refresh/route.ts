@@ -37,11 +37,12 @@ export async function POST(req: NextRequest) {
       email: user.email,
       role: user.role,
       mustChangePassword: user.mustChangePassword,
+      schoolId: user.schoolId ?? undefined,
       pwd: currentPwd,
     });
 
     const res = ok({
-      user: { id: user.id, email: user.email, role: user.role, mustChangePassword: user.mustChangePassword },
+      user: { id: user.id, email: user.email, role: user.role, mustChangePassword: user.mustChangePassword, schoolId: user.schoolId },
     });
     setAuthCookies(res, tokens);
     return res;

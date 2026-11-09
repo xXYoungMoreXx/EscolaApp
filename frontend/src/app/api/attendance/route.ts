@@ -4,6 +4,7 @@ import { allow, clientKey, rateLimited } from '@/server/rate-limit';
 import { CreateAttendanceUseCase, GetAllAttendancesUseCase } from '@/server/application/use-cases';
 import { PrismaAttendanceRepository } from '@/server/infrastructure/database/prisma/repositories';
 import { createAttendanceSchema } from '@/server/shared/validators';
+import { tenantOf } from '@/server/shared/tenancy';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
     const user = requireAuth(req);
     requireRole(user, 'ADMIN', 'COORDINATOR', 'TEACHER');
     const params = getPagination(req);
-    const result = await new GetAllAttendancesUseCase(new PrismaAttendanceRepository()).execute(params);
+    const result = await new GetAllAttendancesUseCase(new PrismaAttendanceRepository()).execute({ ...params, schoolId: tenantOf(user) });
     return okPage(result);
   } catch (error) {
     return fail(error);
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
     requireRole(user, 'ADMIN', 'COORDINATOR', 'TEACHER');
     if (!(await allow(clientKey(req, 'write')))) return rateLimited();
     const body = createAttendanceSchema.parse(await req.json());
-    const result = await new CreateAttendanceUseCase(new PrismaAttendanceRepository()).execute(body);
+    const result = await new CreateAttendanceUseCase(new PrismaAttendanceRepository()).execute(body, tenantOf(user));
     return okCreated(result);
   } catch (error) {
     return fail(error);

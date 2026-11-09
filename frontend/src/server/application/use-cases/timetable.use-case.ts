@@ -54,14 +54,16 @@ async function assertNoOverlap(
 }
 
 export class ListTimetableUseCase {
-  async execute(actor: { role: string; userId: string }, classId?: string) {
+  async execute(actor: { role: string; userId: string; schoolId?: string }, classId?: string) {
     const prisma = getPrisma();
+    // Escopo: a turma precisa pertencer à escola do ator (admin global vê tudo).
+    const schoolScope = actor.schoolId ? { schoolClass: { schoolId: actor.schoolId } } : {};
 
     if (actor.role !== 'STUDENT' && actor.role !== 'GUARDIAN') {
       if (!classId) throw new ValidationError('classId é obrigatório');
       return withClassList(
         await prisma.timetableSlot.findMany({
-          where: { classId },
+          where: { classId, ...schoolScope },
           include: SLOT_INCLUDE,
           orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
         }),
@@ -88,7 +90,7 @@ export class ListTimetableUseCase {
       }
       return withClassList(
         await prisma.timetableSlot.findMany({
-          where: { classId },
+          where: { classId, ...schoolScope },
           include: SLOT_INCLUDE,
           orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
         }),
@@ -134,11 +136,13 @@ export class CreateTimetableSlotUseCase {
     startTime: string;
     endTime: string;
     room?: string;
-  }) {
+  }, schoolId?: string) {
     const prisma = getPrisma();
-    const exists = await prisma.class.findUnique({ where: { id: data.classId }, select: { id: true } });
+    const exists = await prisma.class.findFirst({
+      where: { id: data.classId, ...(schoolId ? { schoolId } : {}) },
+      select: { id: true },
+    });
     if (!exists) throw new NotFoundError('Turma', data.classId);
-
     validateInterval(data.startTime, data.endTime);
     await assertNoOverlap(data.classId, data.dayOfWeek, data.startTime, data.endTime);
 
@@ -152,9 +156,12 @@ export class UpdateTimetableSlotUseCase {
   async execute(
     id: string,
     data: { dayOfWeek?: number; startTime?: string; endTime?: string; room?: string },
+    schoolId?: string,
   ) {
     const prisma = getPrisma();
-    const current = await prisma.timetableSlot.findUnique({ where: { id } });
+    const current = await prisma.timetableSlot.findFirst({
+      where: { id, ...(schoolId ? { schoolClass: { schoolId } } : {}) },
+    });
     if (!current) throw new NotFoundError('Horário', id);
 
     const merged = {
@@ -177,9 +184,12 @@ export class UpdateTimetableSlotUseCase {
 }
 
 export class DeleteTimetableSlotUseCase {
-  async execute(id: string) {
+  async execute(id: string, schoolId?: string) {
     const prisma = getPrisma();
-    const current = await prisma.timetableSlot.findUnique({ where: { id }, select: { id: true } });
+    const current = await prisma.timetableSlot.findFirst({
+      where: { id, ...(schoolId ? { schoolClass: { schoolId } } : {}) },
+      select: { id: true },
+    });
     if (!current) throw new NotFoundError('Horário', id);
     await prisma.timetableSlot.delete({ where: { id } });
     logger.info({ slotId: id }, 'Timetable slot deleted');

@@ -15,10 +15,25 @@ export class CreateGradeUseCase {
       value: number;
       period: string;
     },
-    actor?: { role: string; userId: string },
+    actor?: { role: string; userId: string; schoolId?: string },
   ) {
     if (data.value < 0 || data.value > 10) {
       throw new ValidationError('Nota deve estar entre 0 e 10');
+    }
+
+    // Turma e aluno fora da escola do ator → 404 (nota nunca cruza escolas).
+    if (actor?.schoolId) {
+      const prisma = getPrisma();
+      const inSchool = (model: 'class' | 'student', id: string, schoolId: string) =>
+        (model === 'class'
+          ? prisma.class.findFirst({ where: { id, schoolId }, select: { id: true } })
+          : prisma.student.findFirst({ where: { id, schoolId }, select: { id: true } }));
+      const [cls, stu] = await Promise.all([
+        inSchool('class', data.classId, actor.schoolId),
+        inSchool('student', data.studentId, actor.schoolId),
+      ]);
+      if (!cls) throw new NotFoundError('Turma', data.classId);
+      if (!stu) throw new NotFoundError('Aluno', data.studentId);
     }
 
     // Professor lança em nome próprio; Admin/Coordenador indica o professor.
@@ -92,7 +107,7 @@ export class CreateGradeUseCase {
 export class GetAllGradesUseCase {
   constructor(private gradeRepository: GradeRepository) {}
 
-  async execute(params: { page: number; limit: number; search?: string }) {
+  async execute(params: { page: number; limit: number; search?: string; schoolId?: string }) {
     return this.gradeRepository.findAll(params);
   }
 }
@@ -100,11 +115,19 @@ export class GetAllGradesUseCase {
 export class GetGradesByStudentUseCase {
   constructor(private gradeRepository: GradeRepository) {}
 
-  async execute(studentId: string, classId?: string) {
+  async execute(studentId: string, classId?: string, schoolId?: string) {
+    // Aluno fora da escola do ator → 404.
+    if (schoolId) {
+      const student = await getPrisma().student.findFirst({
+        where: { id: studentId, schoolId },
+        select: { id: true },
+      });
+      if (!student) throw new NotFoundError('Aluno', studentId);
+    }
     if (classId) {
       return this.gradeRepository.findByStudentAndClass(studentId, classId);
     }
-    const result = await this.gradeRepository.findAll({ page: 1, limit: 1000, search: studentId });
+    const result = await this.gradeRepository.findAll({ page: 1, limit: 1000, search: studentId, ...(schoolId ? { schoolId } : {}) });
     return result.data.filter((g: any) => g.studentId === studentId);
   }
 }
@@ -112,8 +135,8 @@ export class GetGradesByStudentUseCase {
 export class UpdateGradeUseCase {
   constructor(private gradeRepository: GradeRepository) {}
 
-  async execute(id: string, data: { value?: number; period?: string }) {
-    const grade = await this.gradeRepository.findById(id);
+  async execute(id: string, data: { value?: number; period?: string }, schoolId?: string) {
+    const grade = await this.gradeRepository.findById(id, schoolId);
     if (!grade) {
       throw new NotFoundError('Nota', id);
     }
@@ -131,8 +154,8 @@ export class UpdateGradeUseCase {
 export class DeleteGradeUseCase {
   constructor(private gradeRepository: GradeRepository) {}
 
-  async execute(id: string) {
-    const grade = await this.gradeRepository.findById(id);
+  async execute(id: string, schoolId?: string) {
+    const grade = await this.gradeRepository.findById(id, schoolId);
     if (!grade) {
       throw new NotFoundError('Nota', id);
     }

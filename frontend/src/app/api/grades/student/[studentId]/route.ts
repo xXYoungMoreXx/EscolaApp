@@ -37,6 +37,7 @@ export async function GET(req: NextRequest, { params }: { params: { studentId: s
     const result = await new GetGradesByStudentUseCase(new PrismaGradeRepository()).execute(
       params.studentId,
       classId,
+      user.schoolId ?? undefined,
     );
     return ok(result);
   } catch (error) {

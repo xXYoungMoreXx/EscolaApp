@@ -34,7 +34,9 @@ function cookieHeader(jar) { return [...jar.m].map(([k, v]) => `${k}=${v}`).join
 function rawJar(name, value) { const j = newJar(); j.m.set(name, value); return j; }
 
 async function call(method, path, { body, jar, rawCookie } = {}) {
-  const headers = { 'Content-Type': 'application/json' };
+  // IP simulado próprio da suíte: o rate limit de rota (login/register) é chaveado
+// por x-forwarded-for; sem isso, suítes diferentes dividiriam o mesmo balde 10/min.
+const headers = { 'Content-Type': 'application/json', 'x-forwarded-for': '203.0.113.10' };
   const cookieValue = rawCookie ?? (jar ? cookieHeader(jar) : null);
   if (cookieValue) headers.Cookie = cookieValue;
   const res = await fetch(BASE + path, {
@@ -282,6 +284,166 @@ ok(r.status === 200 && r.json?.data?.length === 0, 'REGRESSÃO: excluir turma re
 
 r = await call('DELETE', `/api/subjects/${subjectId}`, { jar: JA });
 ok(r.status === 204, 'exclui matéria');
+
+console.log('9) ISOLAMENTO (multi-tenancy)');
+const SCHOOL2_CODE = `E2E-S2-${STAMP}`;
+
+let r9 = await call('GET', '/api/schools', { jar: JA });
+ok(r9.status === 200 && Array.isArray(r9.json?.data), 'admin global lista escolas', JSON.stringify(r9.json)?.slice(0, 150));
+const schoolsRows = r9.json?.data ?? [];
+const school1Id = schoolsRows.find((s) => s.code === 'ESCOLA-001')?.id;
+
+r9 = await call('POST', '/api/schools', { jar: JA, body: { name: 'Escola E2E Dois', code: SCHOOL2_CODE } });
+ok(r9.status === 201 && r9.json?.data?.id, 'admin global cria Escola 2', JSON.stringify(r9.json)?.slice(0, 150));
+const school2Id = r9.json?.data?.id;
+
+r9 = await call('POST', '/api/schools', { jar: JA, body: { name: 'Duplicada E2E', code: SCHOOL2_CODE } });
+ok(r9.status === 409, 'código de escola duplicado é recusado (409)');
+
+// Staff da Escola 2: professor + matéria + turma + aluno criados com schoolId no corpo.
+const t2Email = `prof-s2-${STAMP}@escola.com`;
+r9 = await call('POST', '/api/teachers', {
+  jar: JA,
+  body: {
+    user: { email: t2Email, password: 'teacher123', role: 'TEACHER' },
+    person: { name: 'Professor Escola 2', cpf: validCpf(STAMP + 501) },
+    schoolId: school2Id,
+  },
+});
+ok(r9.status === 201, 'admin global cria professor na Escola 2 (schoolId no corpo)', JSON.stringify(r9.json)?.slice(0, 150));
+const teacher2Id = r9.json?.data?.teacher?.id ?? r9.json?.data?.id;
+
+// Professor de referência da Escola 1 (o professor E2E da seção 2 já foi excluído
+// na limpeza dela; a turma de referência precisa de um docente vivo e residente).
+r9 = await call('POST', '/api/teachers', {
+  jar: JA,
+  body: {
+    user: { email: `prof-s1ref-${STAMP}@escola.com`, password: 'teacher123', role: 'TEACHER' },
+    person: { name: 'Professor Escola 1 Ref', cpf: validCpf(STAMP + 500) },
+    schoolId: school1Id,
+  },
+});
+ok(r9.status === 201, 'admin global cria professor de referência na Escola 1', JSON.stringify(r9.json)?.slice(0, 150));
+const teacher1RefId = r9.json?.data?.teacher?.id ?? r9.json?.data?.id;
+
+const subject2Code = `E2E-S2-${STAMP}`;
+r9 = await call('POST', '/api/subjects', { jar: JA, body: { name: 'Matéria Escola 2', code: subject2Code, workload: 40, schoolId: school2Id } });
+ok(r9.status === 201, 'admin global cria matéria na Escola 2', JSON.stringify(r9.json)?.slice(0, 150));
+const subject2Id = r9.json?.data?.id;
+
+r9 = await call('POST', '/api/classes', {
+  jar: JA,
+  body: { name: `Turma S2 ${STAMP}`, year: new Date().getFullYear(), shift: 'morning', teacherId: teacher2Id, subjectId: subject2Id, schoolId: school2Id },
+});
+ok(r9.status === 201, 'admin global cria turma na Escola 2', JSON.stringify(r9.json)?.slice(0, 150));
+const class2Id = r9.json?.data?.id;
+
+// Turma de referência na Escola 1 (admin global sem schoolId → Escola Demo, a primeira ativa).
+const subject1RefCode = `E2E-S1-${STAMP}`;
+r9 = await call('POST', '/api/subjects', { jar: JA, body: { name: 'Matéria Escola 1 Ref', code: subject1RefCode, workload: 40 } });
+ok(r9.status === 201, 'admin global cria matéria sem alvo explícito (herda a primeira escola ativa)');
+const subject1RefId = r9.json?.data?.id;
+r9 = await call('POST', '/api/classes', {
+  jar: JA,
+  body: { name: `Turma S1 ${STAMP}`, year: new Date().getFullYear(), shift: 'morning', teacherId: teacher2Id, subjectId: subject1RefId },
+});
+ok(r9.status === 404, 'turma apontando professor de outra escola é recusada (404)');
+r9 = await call('POST', '/api/classes', {
+  jar: JA,
+  body: { name: `Turma S1 ${STAMP}`, year: new Date().getFullYear(), shift: 'morning', teacherId: teacher1RefId, subjectId: subject1RefId },
+});
+ok(r9.status === 201, 'turma da Escola 1 criada com professor dela');
+const class1RefId = r9.json?.data?.id;
+
+// Aluno registrado publicamente na Escola 2 (pelo código).
+const s2Email = `aluno-s2-${STAMP}@escola.com`;
+r9 = await call('POST', '/api/auth/register', {
+  body: {
+    user: { email: s2Email, password: 'student123' },
+    person: { name: 'Aluno Escola 2', cpf: validCpf(STAMP + 502) },
+    schoolCode: SCHOOL2_CODE,
+  },
+});
+ok(r9.status === 201, 'cadastro público com código da Escola 2 (201)');
+r9 = await call('GET', `/api/auth/users?search=${s2Email}&limit=1`, { jar: JA });
+const s2UserRow = (r9.json?.data?.data ?? r9.json?.data ?? [])[0];
+const s2UserId = s2UserRow?.id;
+ok(!!s2UserId && s2UserRow.schoolId === school2Id, 'usuário da Escola 2 nasce com schoolId dela');
+r9 = await call('PATCH', `/api/auth/users/${s2UserId}/active`, { jar: JA, body: { active: true } });
+ok(r9.status === 200, 'admin global ativa conta da Escola 2');
+
+const JS2 = newJar();
+r9 = await call('POST', '/api/auth/login', { body: { email: s2Email, password: 'student123' }, jar: JS2 });
+ok(r9.status === 200, 'aluno da Escola 2 autentica');
+ok(r9.json?.data?.user?.schoolId === school2Id, 'perfil/login carrega schoolId da escola');
+
+// Matricula o aluno na turma da Escola 2 e cria um slot nela.
+r9 = await call('GET', '/api/students?limit=100', { jar: JA });
+const s2StudentId = (r9.json?.data?.data ?? r9.json?.data ?? []).filter((s) => s.user?.email === s2Email)[0]?.id;
+ok(!!s2StudentId, 'aluno da Escola 2 está listado (admin global vê todas as escolas)');
+r9 = await call('POST', `/api/classes/${class2Id}/enroll`, { jar: JA, body: { studentId: s2StudentId } });
+ok(r9.status === 201, 'matricula aluno da Escola 2 na turma dela');
+r9 = await call('POST', '/api/timetable', { jar: JA, body: { classId: class2Id, dayOfWeek: 1, startTime: '08:00', endTime: '08:50' } });
+ok(r9.status === 201, 'slot de horário na turma da Escola 2');
+const slot2Id = r9.json?.data?.id;
+r9 = await call('POST', '/api/timetable', { jar: JA, body: { classId: class1RefId, dayOfWeek: 1, startTime: '09:00', endTime: '09:50' } });
+ok(r9.status === 201, 'slot de horário na turma da Escola 1', JSON.stringify(r9.json)?.slice(0, 120));
+const slot1Id = r9.json?.data?.id;
+
+// Furos de leitura: cada escola só enxerga o que é dela. A rota /api/classes é
+// staff-only, então o aluno prova o isolamento pelo horário (403 sem vínculo) e
+// o professor da Escola 2 prova a leitura direta de turma de outra escola (404).
+const JS1 = JS; // mesmo aluno do seed: a sessão da seção 3 continua válida (evita 11º login/min)
+r9 = await call('GET', '/api/auth/me', { jar: JS1 });
+ok(r9.status === 200 && r9.json?.data?.user?.email === 'aluno1@escola.com', 'aluno da Escola 1 (sessão da seção 3) autêntico');
+r9 = await call('GET', `/api/timetable?classId=${class2Id}`, { jar: JS1 });
+ok(r9.status === 403, 'aluno da Escola 1 pede horário de turma da Escola 2 → 403', JSON.stringify(r9.json)?.slice(0, 120));
+r9 = await call('GET', `/api/timetable?classId=${class1RefId}`, { jar: JS2 });
+ok(r9.status === 403, 'aluno da Escola 2 pede horário de turma da Escola 1 → 403', JSON.stringify(r9.json)?.slice(0, 120));
+r9 = await call('GET', '/api/timetable', { jar: JS2 });
+const consolidated2 = r9.json?.data ?? [];
+ok(r9.status === 200 && consolidated2.every((s) => s.class?.id === class2Id), 'grade consolidada do aluno da Escola 2 só contém slots da Escola 2', JSON.stringify(consolidated2).slice(0, 120));
+
+// Professor da Escola 2 não vê dados da Escola 1.
+const JT2 = newJar();
+r9 = await call('POST', '/api/auth/login', { body: { email: t2Email, password: 'teacher123' }, jar: JT2 });
+ok(r9.status === 200, 'professor da Escola 2 autentica');
+r9 = await call('GET', '/api/schools', { jar: JT2 });
+ok(r9.status === 403, 'usuário com escola não lista escolas (403)');
+r9 = await call('GET', `/api/classes/${class1RefId}`, { jar: JT2 });
+ok(r9.status === 404, 'professor da Escola 2 lê turma da Escola 1 → 404 (sem vazar existência)', JSON.stringify(r9.json)?.slice(0, 120));
+r9 = await call('GET', '/api/classes?limit=100', { jar: JT2 });
+ok(r9.status === 200 && (r9.json?.data?.data ?? r9.json?.data ?? []).every((c) => c.id !== class1RefId), 'professor da Escola 2 não vê turma da Escola 1 na listagem');
+r9 = await call('GET', `/api/subjects?limit=100`, { jar: JT2 });
+ok(r9.status === 200 && (r9.json?.data?.data ?? r9.json?.data ?? []).every((s) => s.id !== subject1RefId) && (r9.json?.data?.data ?? r9.json?.data ?? []).some((s) => s.id === subject2Id), 'professor da Escola 2 só lista matérias da sua escola');
+r9 = await call('GET', '/api/teachers?limit=100', { jar: JT2 });
+ok(r9.status === 403, 'professor não lista professores (gate de papel, 403)', JSON.stringify(r9.json)?.slice(0, 120));
+
+// Coordenador da Escola 1 (papel que lista professores): vê o da sua escola, não vê o da Escola 2.
+const JC = newJar();
+r9 = await call('POST', '/api/auth/login', { body: { email: 'coordenador@escola.com', password: 'coord123' }, jar: JC });
+ok(r9.status === 200, 'coordenador da Escola 1 autentica');
+r9 = await call('GET', '/api/teachers?limit=100', { jar: JC });
+const tRows = (r9.json?.data?.data ?? r9.json?.data ?? []);
+ok(r9.status === 200 && tRows.some((t) => t.id === teacher1RefId) && !tRows.some((t) => t.id === teacher2Id), 'coordenador da Escola 1 vê professores só da sua escola (sem o da Escola 2)', JSON.stringify(tRows.map((t) => t.id)).slice(0, 120));
+
+console.log('9b) LIMPEZA DO ISOLAMENTO');
+r9 = await call('DELETE', `/api/timetable/${slot2Id}`, { jar: JA });
+ok(r9.status === 204, 'exclui slot da Escola 2');
+r9 = await call('DELETE', `/api/timetable/${slot1Id}`, { jar: JA });
+ok(r9.status === 204, 'exclui slot da Escola 1');
+r9 = await call('DELETE', `/api/classes/${class2Id}`, { jar: JA });
+ok(r9.status === 204, 'exclui turma da Escola 2');
+r9 = await call('DELETE', `/api/classes/${class1RefId}`, { jar: JA });
+ok(r9.status === 204, 'exclui turma de referência da Escola 1');
+r9 = await call('DELETE', `/api/subjects/${subject2Id}`, { jar: JA });
+ok(r9.status === 204, 'exclui matéria da Escola 2');
+r9 = await call('DELETE', `/api/subjects/${subject1RefId}`, { jar: JA });
+ok(r9.status === 204, 'exclui matéria de referência da Escola 1');
+r9 = await call('DELETE', `/api/teachers/${teacher2Id}`, { jar: JA });
+ok(r9.status === 204, 'exclui professor da Escola 2');
+r9 = await call('DELETE', `/api/teachers/${teacher1RefId}`, { jar: JA });
+ok(r9.status === 204, 'exclui professor de referência da Escola 1');
 
 console.log('');
 console.log(`RESULTADO: ${pass} passaram, ${fail} falharam`);

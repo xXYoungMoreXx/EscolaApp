@@ -3,6 +3,7 @@ import { noContent, fail, requireAuth, requireRole } from '@/server/http';
 import { allow, clientKey, rateLimited } from '@/server/rate-limit';
 import { DeleteAttendanceUseCase } from '@/server/application/use-cases';
 import { PrismaAttendanceRepository } from '@/server/infrastructure/database/prisma/repositories';
+import { tenantOf } from '@/server/shared/tenancy';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -12,7 +13,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     const user = requireAuth(req);
     requireRole(user, 'ADMIN', 'COORDINATOR');
     if (!(await allow(clientKey(req, 'write')))) return rateLimited();
-    await new DeleteAttendanceUseCase(new PrismaAttendanceRepository()).execute(params.id);
+    await new DeleteAttendanceUseCase(new PrismaAttendanceRepository()).execute(params.id, tenantOf(user));
     return noContent();
   } catch (error) {
     return fail(error);

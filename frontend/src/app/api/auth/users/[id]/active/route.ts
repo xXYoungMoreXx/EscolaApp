@@ -4,6 +4,7 @@ import { ok, fail, requireAuth, requireRole } from '@/server/http';
 import { SetUserActiveUseCase } from '@/server/application/use-cases';
 import { PrismaUserRepository } from '@/server/infrastructure/database/prisma/repositories';
 import { emailService, smtpConfigured } from '@/server/infrastructure/email/email.service';
+import { tenantOf } from '@/server/shared/tenancy';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,7 +17,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     requireRole(user, 'ADMIN');
     const body = bodySchema.parse(await req.json());
     const useCase = new SetUserActiveUseCase(new PrismaUserRepository());
-    const result = await useCase.execute(params.id, body.active);
+    const result = await useCase.execute(params.id, body.active, tenantOf(user));
     // Fase 0/Mautic: avisa o dono da conta quando ela é ativada (a UI de
     // cadastro promete isso). Sem SMTP o send() registra aviso e não envia.
     if (body.active && result.email && smtpConfigured()) {

@@ -4,6 +4,7 @@ import { allow, clientKey, rateLimited } from '@/server/rate-limit';
 import { CreateStudentUseCase, GetAllStudentsUseCase } from '@/server/application/use-cases';
 import { PrismaStudentRepository, PrismaUserRepository } from '@/server/infrastructure/database/prisma/repositories';
 import { createStudentSchema } from '@/server/shared/validators';
+import { tenantOf, targetSchoolId } from '@/server/shared/tenancy';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
     const user = requireAuth(req);
     requireRole(user, 'ADMIN', 'COORDINATOR', 'TEACHER');
     const params = getPagination(req);
-    const result = await new GetAllStudentsUseCase(new PrismaStudentRepository()).execute(params);
+    const result = await new GetAllStudentsUseCase(new PrismaStudentRepository()).execute({ ...params, schoolId: tenantOf(user) });
     return okPage(result);
   } catch (error) {
     return fail(error);
@@ -26,10 +27,12 @@ export async function POST(req: NextRequest) {
     requireRole(user, 'ADMIN', 'COORDINATOR');
     if (!(await allow(clientKey(req, 'write')))) return rateLimited();
     const body = createStudentSchema.parse(await req.json());
+    const bodySchoolId = body.schoolId;
+    delete body.schoolId;
     const result = await new CreateStudentUseCase(
       new PrismaStudentRepository(),
       new PrismaUserRepository(),
-    ).execute(body);
+    ).execute({ ...body, schoolId: await targetSchoolId(user, bodySchoolId) });
     return okCreated(result);
   } catch (error) {
     return fail(error);

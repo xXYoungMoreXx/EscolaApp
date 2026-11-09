@@ -8,16 +8,14 @@ export class CreateNotificationUseCase {
   async execute(data: {
     userId?: string | null;
     targetRole?: string | null;
+    schoolId?: string | null;
     title: string;
     message: string;
     type?: string;
   }) {
-    if (!data.userId && !data.targetRole) {
-      // Sem destino = aviso geral para todos os papéis
-    }
     const notification = await this.notificationRepository.create(data);
     logger.info(
-      { notificationId: notification.id, userId: data.userId, targetRole: data.targetRole },
+      { notificationId: notification.id, userId: data.userId, targetRole: data.targetRole, schoolId: data.schoolId },
       'Notification created',
     );
     return notification;
@@ -27,10 +25,10 @@ export class CreateNotificationUseCase {
 export class ListMyNotificationsUseCase {
   constructor(private notificationRepository: NotificationRepository) {}
 
-  async execute(userId: string, role: string, onlyUnread = false) {
+  async execute(userId: string, role: string, onlyUnread = false, schoolId?: string) {
     const [items, unread] = await Promise.all([
-      this.notificationRepository.findForUser(userId, role, onlyUnread),
-      this.notificationRepository.countUnread(userId, role),
+      this.notificationRepository.findForUser(userId, role, onlyUnread, schoolId),
+      this.notificationRepository.countUnread(userId, role, schoolId),
     ]);
     return { items, unread };
   }
@@ -65,9 +63,13 @@ export class MarkAllNotificationsAsReadUseCase {
 export class DeleteNotificationUseCase {
   constructor(private notificationRepository: NotificationRepository) {}
 
-  async execute(id: string, userId: string, role: string) {
+  async execute(id: string, userId: string, role: string, schoolId?: string) {
     const notification = await this.notificationRepository.findById(id);
     if (!notification) {
+      throw new NotFoundError('Notificação', id);
+    }
+    // Gestor com escola só gerencia broadcasts da própria escola.
+    if (schoolId && notification.schoolId && notification.schoolId !== schoolId) {
       throw new NotFoundError('Notificação', id);
     }
     const isOwner = notification.userId === userId;

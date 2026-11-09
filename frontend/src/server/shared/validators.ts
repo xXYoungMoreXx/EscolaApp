@@ -51,6 +51,7 @@ export const createPersonSchema = z.object({
 export const createStudentSchema = z.object({
   user: createUserSchema.extend({ role: z.literal('STUDENT') }),
   person: createPersonSchema,
+  schoolId: z.string().uuid().optional(), // alvo de escrita; só aceito de admin global (targetSchoolId)
 });
 
 export const createTeacherSchema = z.object({
@@ -58,6 +59,7 @@ export const createTeacherSchema = z.object({
   person: createPersonSchema,
   admission: z.string().datetime().optional(),
   salary: z.number().positive().optional(),
+  schoolId: z.string().uuid().optional(),
 });
 
 export const createSubjectSchema = z.object({
@@ -65,6 +67,7 @@ export const createSubjectSchema = z.object({
   code: z.string().min(2).max(20),
   description: z.string().optional(),
   workload: z.number().int().positive().max(500),
+  schoolId: z.string().uuid().optional(),
 });
 
 export const createClassSchema = z.object({
@@ -73,6 +76,7 @@ export const createClassSchema = z.object({
   shift: z.enum(['morning', 'afternoon', 'night']),
   teacherId: z.string().uuid(),
   subjectId: z.string().uuid(),
+  schoolId: z.string().uuid().optional(),
 });
 
 export const createGradeSchema = z.object({
@@ -111,6 +115,15 @@ export const createGuardianSchema = z.object({
   person: createPersonSchema,
   relationship: z.enum(['PAI', 'MAE', 'RESPONSAVEL']).optional(),
   studentIds: z.array(z.string().uuid()).min(1).max(20),
+  schoolId: z.string().uuid().optional(),
+});
+
+export const createSchoolSchema = z.object({
+  name: z.string().min(2, 'Nome da escola é obrigatório').max(80),
+  code: z
+    .string()
+    .transform((v) => v.trim().toUpperCase())
+    .pipe(z.string().regex(/^[A-Z0-9][A-Z0-9-]{2,19}$/, 'Código: 3-20 caracteres de A-Z, 0-9 ou hífen')),
 });
 
 export const timetableSlotSchema = z.object({
