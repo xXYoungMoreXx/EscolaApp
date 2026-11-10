@@ -300,6 +300,16 @@ const school2Id = r9.json?.data?.id;
 r9 = await call('POST', '/api/schools', { jar: JA, body: { name: 'Duplicada E2E', code: SCHOOL2_CODE } });
 ok(r9.status === 409, 'código de escola duplicado é recusado (409)');
 
+// Edição: nome atualiza, código é imutável e só admin global pode editar.
+r9 = await call('PUT', `/api/schools/${school2Id}`, { jar: JA, body: { name: `Escola E2E Dois Alt ${STAMP}` } });
+ok(r9.status === 200 && r9.json?.data?.name === `Escola E2E Dois Alt ${STAMP}` && r9.json?.data?.code === SCHOOL2_CODE, 'PUT renomeia escola mantendo o código (200)', JSON.stringify(r9.json)?.slice(0, 120));
+r9 = await call('PUT', `/api/schools/${school2Id}`, { jar: JA, body: { name: 'Tentativa', code: 'HACK-CODE-1' } });
+ok(r9.status === 422, 'PUT com código no corpo é recusado (422, código imutável)', JSON.stringify(r9.json)?.slice(0, 120));
+r9 = await call('PUT', '/api/schools/00000000-0000-0000-0000-000000000000', { jar: JA, body: { active: true } });
+ok(r9.status === 404, 'PUT de escola inexistente → 404');
+r9 = await call('PUT', '/api/schools/00000000-0000-0000-0000-000000000000', { jar: JA, body: {} });
+ok(r9.status === 422, 'PUT sem campos obrigatórios no corpo → 422');
+
 // Staff da Escola 2: professor + matéria + turma + aluno criados com schoolId no corpo.
 const t2Email = `prof-s2-${STAMP}@escola.com`;
 r9 = await call('POST', '/api/teachers', {
@@ -444,6 +454,51 @@ r9 = await call('DELETE', `/api/teachers/${teacher2Id}`, { jar: JA });
 ok(r9.status === 204, 'exclui professor da Escola 2');
 r9 = await call('DELETE', `/api/teachers/${teacher1RefId}`, { jar: JA });
 ok(r9.status === 204, 'exclui professor de referência da Escola 1');
+
+console.log('9c) DESATIVAÇÃO DE ESCOLA');
+const SCHOOL3_CODE = `E2E-S3-${STAMP}`;
+r9 = await call('POST', '/api/schools', { jar: JA, body: { name: 'Escola E2E Tres', code: SCHOOL3_CODE } });
+ok(r9.status === 201, 'admin global cria Escola 3');
+const school3Id = r9.json?.data?.id;
+
+// Cadastro público funciona com a escola ATIVA.
+r9 = await call('POST', '/api/auth/register', {
+  body: {
+    user: { email: `aluno-s3-${STAMP}@escola.com`, password: 'student123' },
+    person: { name: 'Aluno Escola 3', cpf: validCpf(STAMP + 503) },
+    schoolCode: SCHOOL3_CODE,
+  },
+});
+ok(r9.status === 201, 'cadastro público com escola ativa (201)');
+r9 = await call('GET', `/api/auth/users?search=aluno-s3-${STAMP}@escola.com&limit=1`, { jar: JA });
+const s3UserId = (r9.json?.data?.data ?? r9.json?.data ?? [])[0]?.id;
+ok(!!s3UserId, 'usuário da Escola 3 existe para o teste de desativação');
+
+// Desativa → cadastro público com o código passa a 404; conta existente segue ativável.
+r9 = await call('PUT', `/api/schools/${school3Id}`, { jar: JA, body: { active: false } });
+ok(r9.status === 200 && r9.json?.data?.active === false, 'PUT desativa escola (200, active=false)');
+r9 = await call('POST', '/api/auth/register', {
+  body: {
+    user: { email: `aluno-s3b-${STAMP}@escola.com`, password: 'student123' },
+    person: { name: 'Aluno Escola 3 Bloqueado', cpf: validCpf(STAMP + 504) },
+    schoolCode: SCHOOL3_CODE,
+  },
+});
+ok(r9.status === 404, 'cadastro público com escola inativa → 404', JSON.stringify(r9.json)?.slice(0, 120));
+r9 = await call('PATCH', `/api/auth/users/${s3UserId}/active`, { jar: JA, body: { active: true } });
+ok(r9.status === 200, 'conta já existente da escola inativa é ativável (sem bloqueio de escola)');
+
+// Reativa e confirma o ciclo completo.
+r9 = await call('PUT', `/api/schools/${school3Id}`, { jar: JA, body: { active: true } });
+ok(r9.status === 200 && r9.json?.data?.active === true, 'PUT reativa escola (200, active=true)');
+r9 = await call('POST', '/api/auth/register', {
+  body: {
+    user: { email: `aluno-s3c-${STAMP}@escola.com`, password: 'student123' },
+    person: { name: 'Aluno Escola 3 Reativada', cpf: validCpf(STAMP + 505) },
+    schoolCode: SCHOOL3_CODE,
+  },
+});
+ok(r9.status === 201, 'cadastro público volta a funcionar após reativação (201)');
 
 console.log('');
 console.log(`RESULTADO: ${pass} passaram, ${fail} falharam`);
