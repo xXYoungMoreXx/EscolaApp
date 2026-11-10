@@ -22,6 +22,8 @@ export default function SchoolsPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({ name: '', code: '' });
+  const [editing, setEditing] = useState<School | null>(null);
+  const [editActive, setEditActive] = useState(true);
 
   const fetchData = async () => {
     try {
@@ -54,14 +56,27 @@ export default function SchoolsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.post('/api/schools', { ...formData, code: formData.code.toUpperCase() });
-      toast.success('Escola cadastrada!');
+      if (editing) {
+        await api.put(`/api/schools/${editing.id}`, { name: formData.name, active: editActive });
+        toast.success('Escola atualizada!');
+      } else {
+        await api.post('/api/schools', { ...formData, code: formData.code.toUpperCase() });
+        toast.success('Escola cadastrada!');
+      }
       setShowModal(false);
+      setEditing(null);
       setFormData({ name: '', code: '' });
       fetchData();
     } catch (error: any) {
       toast.error(error.response?.data?.error?.message || 'Erro ao salvar');
     }
+  };
+
+  const openEdit = (s: School) => {
+    setEditing(s);
+    setFormData({ name: s.name, code: s.code });
+    setEditActive(s.active);
+    setShowModal(true);
   };
 
   return (
@@ -84,13 +99,14 @@ export default function SchoolsPage() {
                 <th className="px-6 py-3">Código</th>
                 <th className="px-6 py-3">Nome</th>
                 <th className="px-6 py-3">Status</th>
+                <th className="px-6 py-3">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {loading ? (
-                <tr><td colSpan={3} className="px-6 py-12 text-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div></td></tr>
+                <tr><td colSpan={4} className="px-6 py-12 text-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div></td></tr>
               ) : schools.length === 0 ? (
-                <tr><td colSpan={3} className="px-6 py-12 text-center text-gray-500">Nenhuma escola cadastrada</td></tr>
+                <tr><td colSpan={4} className="px-6 py-12 text-center text-gray-500">Nenhuma escola cadastrada</td></tr>
               ) : schools.map((s) => (
                 <tr key={s.id} className="hover:bg-gray-50">
                   <td className="table-cell font-medium">{s.code}</td>
@@ -99,6 +115,14 @@ export default function SchoolsPage() {
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${s.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
                       {s.active ? 'Ativa' : 'Inativa'}
                     </span>
+                  </td>
+                  <td className="table-cell">
+                    <button
+                      onClick={() => openEdit(s)}
+                      className="text-sm text-primary-600 hover:underline"
+                    >
+                      Editar
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -113,8 +137,8 @@ export default function SchoolsPage() {
             <div className="fixed inset-0 bg-gray-500 bg-opacity-75" onClick={() => setShowModal(false)} />
             <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Nova Escola</h3>
-                <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><HiOutlineX className="h-6 w-6" /></button>
+                <h3 className="text-lg font-medium text-gray-900">{editing ? 'Editar Escola' : 'Nova Escola'}</h3>
+                <button onClick={() => { setShowModal(false); setEditing(null); }} className="text-gray-400 hover:text-gray-600"><HiOutlineX className="h-6 w-6" /></button>
               </div>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
@@ -122,21 +146,31 @@ export default function SchoolsPage() {
                   <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="input-field" required maxLength={80} />
                 </div>
                 <div>
-                  <label className="label">Código * (A-Z, 0-9 ou hífen; usado no cadastro público)</label>
+                  <label className="label">Código {editing ? '(permanente)' : '* (A-Z, 0-9 ou hífen; usado no cadastro público)'}</label>
                   <input
                     type="text"
                     value={formData.code}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
                     className="input-field"
-                    required
+                    required={!editing}
+                    disabled={!!editing}
                     maxLength={20}
                     pattern="[A-Za-z0-9][A-Za-z0-9-]{2,19}"
                     title="3-20 caracteres: letras, números ou hífen"
                   />
+                  {editing && <p className="text-xs text-gray-500 mt-1">O código é permanente — usado por quem já o recebeu no cadastro público.</p>}
                 </div>
+                {editing && (
+                  <div>
+                    <label className="label flex items-center gap-2">
+                      <input type="checkbox" checked={editActive} onChange={(e) => setEditActive(e.target.checked)} className="h-4 w-4" />
+                      Escola ativa (inativa bloqueia apenas novos cadastros)
+                    </label>
+                  </div>
+                )}
                 <div className="flex justify-end gap-3 mt-6">
-                  <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">Cancelar</button>
-                  <button type="submit" className="btn-primary">Cadastrar</button>
+                  <button type="button" onClick={() => { setShowModal(false); setEditing(null); }} className="btn-secondary">Cancelar</button>
+                  <button type="submit" className="btn-primary">{editing ? 'Salvar' : 'Cadastrar'}</button>
                 </div>
               </form>
             </div>
