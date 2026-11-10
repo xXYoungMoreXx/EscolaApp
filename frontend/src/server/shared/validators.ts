@@ -126,6 +126,16 @@ export const createSchoolSchema = z.object({
     .pipe(z.string().regex(/^[A-Z0-9][A-Z0-9-]{2,19}$/, 'Código: 3-20 caracteres de A-Z, 0-9 ou hífen')),
 });
 
+export const updateSchoolSchema = z
+  .object({
+    name: z.string().min(2, 'Nome da escola é obrigatório').max(80).optional(),
+    active: z.boolean().optional(),
+  })
+  .strict()
+  .refine((d) => d.name !== undefined || d.active !== undefined, {
+    message: 'Informe nome ou status (Ativa/Inativa) para atualizar',
+  });
+
 export const timetableSlotSchema = z.object({
   dayOfWeek: z.number().int().min(1).max(7),
   startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use o formato HH:MM'),
